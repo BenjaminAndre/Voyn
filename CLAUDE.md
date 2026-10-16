@@ -10,9 +10,9 @@ Grows out of the developer's earlier prototype, Jolar. Fun side project: one dev
 Pre-production, settling **broad lines** before content. The turn structure (D3) is open, with candidates in `01-combat.md` R3. Content (creatures, monsters, abilities) is placeholder. M0 setup is design-independent and can start any time (see `docs/tasks.md`).
 
 **Stack (decided 2026-10-16, details in `docs/architecture.md`):**
-- Client: Godot 4 (latest stable; pin the exact version here during M0), typed GDScript, 3D with orthographic camera, Compatibility renderer.
+- Client: **Godot 4.7.2 stable** (pinned 2026-10-16), typed GDScript, 3D with orthographic camera, Compatibility renderer.
 - Rules engine: pure, deterministic, headless GDScript in `src/rules/`, integer math only.
-- Tests: GUT, run headless.
+- Tests: GUT 9.6.1 (`addons/gut/`), run headless.
 - Post-MVP: Godot headless combat workers + Go backend in `server/`. No server code before the MVP.
 
 ## IP rule (hard)
@@ -43,8 +43,18 @@ Rules: Opus decides, Sonnet builds, Haiku fills in. Don't use Opus for work with
 - Every session ends with the game runnable and tests green. Pick tasks from `docs/tasks.md` that fit one session.
 - **Godot 4 APIs only** (no Godot 3 syntax). Static typing on every GDScript variable, parameter and return.
 - `src/rules/` never touches nodes, scenes, rendering, engine singletons, floats or engine RNG. Name tests after GDD rule IDs (`test_R5_2_los_symmetric`).
-- Small commits, one concern each. No git repo yet: initialize before first code commit (task T1).
+- Small commits, one concern each. Default branch is `main`.
 - State assumptions explicitly; list open questions in `docs/gdd/README.md` rather than guessing.
 
 ## Commands
-Set during M0 (task T1). Expected entries: open the editor, run the game, run all tests headless, run golden replays. Godot is not on PATH yet on this machine.
+Godot is not on PATH. On this machine the binaries are on the Desktop: `Godot_v4.7.2-stable_win64.exe` (editor/game) and `Godot_v4.7.2-stable_win64_console.exe` (headless, prints to the terminal). In Git Bash:
+
+```bash
+G="/c/Users/LocalAdmin/Desktop/Godot_v4.7.2-stable_win64_console.exe"
+"$G" --headless --path . --import                        # once after a fresh clone, builds .godot/
+"$G" --headless --path . -s addons/gut/gut_cmdln.gd -gexit   # run all tests (config: .gutconfig.json)
+"$G" --path . -e                                         # open the editor
+"$G" --path .                                            # run the game (no main scene yet)
+```
+
+Golden replays: added with task T11.

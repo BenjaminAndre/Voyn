@@ -20,7 +20,7 @@ Who: **dev** = Sonnet session or `dev` agent · **grunt** = `grunt` agent (Haiku
 - [ ] **D5 Setting brief** (you + pilot). A page: what "solarpunk fantasy" means for Voyn, references, palette, tone. Names come after.
 
 ## M0 — Setup (design-independent, can run any time)
-- [ ] **T1 Project setup** (dev). `git init` with a Godot `.gitignore`; commit the existing docs first. Ask the user to install the latest Godot 4 stable; don't download it yourself. Create `project.godot` at repo root (Compatibility renderer). Add `.gdignore` to `docs/`. Install GUT and add one smoke test. Write the exact Godot version and the commands (open editor, run game, run tests headless) into `CLAUDE.md`.
+- [x] **T1 Project setup** (dev). `git init` with a Godot `.gitignore`; commit the existing docs first. Ask the user to install the latest Godot 4 stable; don't download it yourself. Create `project.godot` at repo root (Compatibility renderer). Add `.gdignore` to `docs/`. Install GUT and add one smoke test. Write the exact Godot version and the commands (open editor, run game, run tests headless) into `CLAUDE.md`.
   *Done when:* the documented headless test command passes from a fresh clone.
 - [ ] **T1b `debug` → itch.io pipeline** (dev, needs T1). First, **you**: create the GitHub repo and the itch.io page, and set `BUTLER_API_KEY` (secret), `ITCH_USERNAME` and `ITCH_GAME_ID` (variables) in GitHub. Then dev:
   - add a minimal main scene that shows `build_info.txt` in a corner;
