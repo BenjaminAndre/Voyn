@@ -1,0 +1,14 @@
+{
+  "_doc": "Global combat tuning. Rules: docs/gdd/01-combat.md. Initial guesses, tune via bot fights. HP scale assumption: Creatures 100-200 HP, ability base damage 10-40. Collision damage is fixed, so price push distance in ability data. collapse_at and bloom_at are per Arena, in arena data.",
+  "engagement_mp_per_enemy": 1,
+  "collision_damage_per_cell": 8,
+  "crush_damage": 15,
+  "telegraph_min_delay": 1,
+  "blight_damage": 10,
+  "thrive_heal": 8,
+  "blightborn_power_pct": 20,
+  "land_sum_threshold": 5,
+  "height_step_mp": 1,
+  "fall_damage_per_level": 10,
+  "height_advantage_pct": 15
+}

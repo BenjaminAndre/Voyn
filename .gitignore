@@ -1,0 +1,22 @@
+# Godot 4
+.godot/
+*.translation
+export_presets.cfg.bak
+
+# Exports and build output
+/build/
+/export/
+build_info.txt
+
+# Secrets
+export_credentials.cfg
+*.key
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code local state
+.claude/settings.local.json
