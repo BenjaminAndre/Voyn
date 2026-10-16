@@ -21,7 +21,7 @@ project.godot   Godot project root = repo root, so res://data/ is reachable in e
 src/rules/      Rules engine: no Node, no scene tree, no rendering, no engine singletons
 src/rules/turns/  The scheduler: the only code that knows the turn structure (GDD R3)
 src/ai/         Behaviors; simulate through src/rules/ only
-src/client/     Scenes, 3D board, camera, input, UI, undo; reads state, sends actions, animates events
+src/client/     Scenes, 3D board, camera, input, planning UI, window timer; reads state, sends plans, animates events
 data/           JSON: combat/, creatures/, abilities/, statuses/, monsters/, behaviors/, arenas/, encounters/, keeper_tools/
 tests/unit/     GUT tests, named after GDD rule IDs (test_R5_2_los_symmetric)
 tests/golden/   Golden replays and the LoS table (JSON)
@@ -32,22 +32,27 @@ server/         Go backend, later (has a .gdignore)
 Export presets must include `data/**/*.json`, because Godot does not export non-resource files by default.
 
 ## Rules engine contract
-- **Actions**: `place(creature, cell)`, `start_fight()`, `move(fighter, path)`, `use(fighter, ability, cell)`, `interact(keeper, interaction, cell)`, `forfeit()`, plus whatever the turn structure needs to pass control (`end_activation`, `ready`…; set by D3).
-- **`apply(state, action) -> result`**: the new state plus a list of events, or an error with the state unchanged.
-- **Scheduler** (`src/rules/turns/`): the only module that decides who may act now and when turn-units start and end. Everything else asks it. That way the D3 candidates can be swapped, or prototyped side by side, without touching the rules.
-- **Time is an integer tick** in the state from day one, even for turn-based schedulers. Turn-based schedulers advance it in jumps; a real-time scheduler (candidate F) advances it continuously.
-  - Durations, Telegraph delays, recharges and bullet time are all stored in ticks.
-  - Actions carry the tick they were committed on, so golden replays work for every candidate.
+- **Turn structure**: discrete steps (GDD R3, candidate G, provisional). The engine works one step at a time.
+- **Setup actions**: `place(creature, cell)`, `start_fight()`, `forfeit()`.
+- **Plans** (GDD R3.4): `{fighter, move_path?, ability?, target_cell?, order: "move_first" | "ability_first"}`, plus `{keeper, interaction, target_cell}`. `validate_plan(state, plan, ally_plans)` checks a plan against the board as it stands.
+- **`resolve_step(state, plans) -> result`**: takes every Side's plans for the step and returns the new state plus a list of events. It runs Lead moves → Prep → Dash → Strike → Trail moves → Upkeep (GDD R3.6). Fizzles are events, not errors. Only setup actions and malformed plans return errors.
+- **Scheduler** (`src/rules/turns/`): the only module that knows the step structure (phase order, window, recharge cadence, Land cadence). If D3 changes, only this module and its tests move.
+- **Time is the step counter**, an integer in the state. Durations, Telegraph delays, cooldowns and recharges are all in steps. The window length (`step_window_ms`) is a client and server concern, not a rules concern: the engine never reads a clock.
+- **Simultaneous movement** (GDD R4.8): all movers of a phase advance one cell per sub-tick. Each sub-tick:
+  1. Compute every mover's wanted cell.
+  2. Mark vacated cells, iterating until nothing changes, so a mover can follow another out of a cell.
+  3. Resolve conflicts by the GDD priority. Block swaps and cycles.
+  4. Pay MP and Engagement per cell, against positions at the start of the sub-tick.
 - **Queries** (read-only, so the client never computes a rule):
   - `reachable(state, fighter)` → for each cell: MP cost, default path (GDD R4.6), blight damage along it;
-  - `targets(state, fighter, ability)` → valid target cells;
-  - `forecast(state)` → the cells the next Land phase would change, and the board karma after it;
-  - `can_act(state)` → who may act now (from the scheduler).
-- **Previews** (R9) and AI (R10) call `apply` on a copy. State is plain data, copyable in one call. For `chance` effects, the preview applies each branch on its own copy.
-- **Events** are the only thing the client animates: `round_started`, `land_phase`, `activation_started`, `moved`, `ap_spent`, `damaged`, `healed`, `shield_changed`, `displaced`, `relocated`, `collided`, `status_applied`, `status_ended`, `cell_mutated`, `karma_changed`, `chance_rolled`, `telegraph_placed`, `telegraph_resolved`, `interacted`, `defeated` (with `cleansed`, `killed` or `downed`), `fight_ended` (with `collapse`, `bloom`, `victory` or `defeat`).
+  - `targets(state, fighter, ability, from_cell)` → valid target cells from a planned position;
+  - `threat_zone(state, fighter)` → the cells it could reach and hit this step;
+  - `forecast(state)` → the cells the next Land phase would change, and the board karma after it.
+- **Previews** (R9) and AI (R10) call `resolve_step` on a copy, with the player's and allies' plans and empty enemy plans. State is plain data, copyable in one call. For `chance` effects, the preview resolves each branch on its own copy.
+- **Events** are the only thing the client animates: `step_started`, `phase_started` (with the phase name), `moved`, `move_blocked`, `ap_spent`, `fizzled`, `damaged`, `healed`, `shield_changed`, `displaced`, `relocated`, `collided`, `status_applied`, `status_ended`, `cell_mutated`, `karma_changed`, `chance_rolled`, `telegraph_placed`, `telegraph_resolved`, `interacted`, `refilled`, `land_phase`, `defeated` (with `cleansed`, `killed` or `downed`), `fight_ended` (with `collapse`, `bloom`, `victory` or `defeat`).
 - `damaged` and `healed` carry a `cause`: `ability`, `blight`, `thrive`, `collision`, `crush` or `telegraph`. A `land_phase` event is followed by one `karma_changed` event per changed cell, in cell order.
-- **Keep copies cheap**: AI and previews copy the state many times per turn-unit, so store per-cell data (karma, walkable, blocks_los) as packed int arrays indexed by cell, not as dictionaries of objects.
-- **Undo** is client-only (R3.6): the client snapshots state and replays nothing. The engine and the replays only ever see actions that were not undone.
+- **Keep copies cheap**: AI and previews copy the state many times per step, so store per-cell data (karma, walkable, blocks_los) as packed int arrays indexed by cell, not as dictionaries of objects.
+- **No undo**: plans are editable until the window closes, so the engine only ever sees final plans.
 
 ## Determinism and portability
 Same state + same action gives the same events on every platform, and in a future Go port.

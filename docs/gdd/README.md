@@ -124,7 +124,7 @@ Current decisions. Replaced ones are listed under "Superseded".
 | 2026-10-16 | Defeat on Pure/Thriving Cleanses a Monster (Renewal); elsewhere Kills it (cell → Blighted); Downed Creatures blight too | Position decides kill vs cleanse; violence pollutes | Pilot |
 | 2026-10-16 | Battles always start from the map's authored karma; no carry-over between battles | Prevents griefing; zone-wide corruption may change maps later | User |
 | 2026-10-16 | Randomness allowed only as visible Chance: odds before commit, result after; one seeded PRNG per fight, fixed seeds in tests | Fun of risk without hidden rolls (Pillar 1); exact replays | User + pilot |
-| 2026-10-16 | Keeper: off-board, untargetable, one interaction per turn-unit from Arena interactables and universal tools | Nobody waits with nothing to do; no class lock on the Keeper | User + pilot |
+| 2026-10-16 | Keeper: off-board, untargetable, one interaction whenever it has recharged, from Arena interactables and universal tools | Nobody waits with nothing to do; no class lock on the Keeper | User + pilot |
 | 2026-10-16 | Monsters corrupt too, capped at −1 on one cell per instant ability; bigger corruption must be Telegraphed; AI treats Collapse as a loss unless `wants_collapse` | Everyone's violence pollutes, but fairly; nihilist bosses stay possible | Pilot, from user's idea |
 | 2026-10-16 | Exact integer LoS algorithm; affected fighters fixed at use time; explicit elimination and Land checkpoints | Removes implementer guesswork before golden replays freeze it | Pilot, from design-critic |
 | 2026-10-16 | All Telegraph damage is fixed damage; Creature/Keeper `raise_obstacle` skips occupied cells | Exact displayed numbers; no crush exploit | Pilot, from design-critic |

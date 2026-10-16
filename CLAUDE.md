@@ -2,12 +2,18 @@
 
 Original solarpunk-fantasy tactics game on hex arenas. It mixes the *genres* of Dofus (grid combat, AP/MP, abilities, pushes) and creature collecting: you play a classless **Keeper** in the overworld, and your **Creatures** fight in battle. Not a copy of either: see IP rule.
 
-Its own hook: the **Land is a third player**. Every cell has **karma** (Blighted ↔ Thriving), every action marks it, and a neighbor-sum automaton amplifies it between rounds. Fights are negative-sum: Victory or Defeat, **Bloom** if the board is purified, **Collapse** (everyone loses) if it sinks into blight. PvM only.
+Its own hook: the **Land is a third player**. Every cell has **karma** (Blighted ↔ Thriving), every action marks it, and a neighbor-sum automaton amplifies it every step. Fights are negative-sum: Victory or Defeat, **Bloom** if the board is purified, **Collapse** (everyone loses) if it sinks into blight. PvM only.
 
 Grows out of the developer's earlier prototype, Jolar. Fun side project: one developer plus AI. Long-term north star is a persistent online world; the MVP is offline.
 
 ## Status
-Pre-production, settling **broad lines** before content. The turn structure (D3) is open, with candidates in `01-combat.md` R3. Content (creatures, monsters, abilities) is placeholder. M0 setup is design-independent and can start any time (see `docs/tasks.md`).
+Pre-production, settling **broad lines** before content. Turn structure: **discrete steps**, adopted provisionally (`01-combat.md` R3):
+- an 8 s frozen window;
+- plans hidden from the other Side;
+- one move + one ability per Creature per step;
+- phased resolution.
+
+Validate it with D3 (paper test). Content (creatures, monsters, abilities) is placeholder. T1 setup is done; the next tasks are in `docs/tasks.md`.
 
 **Stack (decided 2026-10-16, details in `docs/architecture.md`):**
 - Client: **Godot 4.7.2 stable** (pinned 2026-10-16), typed GDScript, 3D with orthographic camera, Compatibility renderer.
