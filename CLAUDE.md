@@ -8,7 +8,7 @@ Grows out of the developer's earlier prototype, Jolar. Fun side project: one dev
 
 ## Status
 Pre-production, settling **broad lines** before content. Turn structure: **discrete steps**, adopted provisionally (`01-combat.md` R3):
-- an 8 s frozen window;
+- a 16 s frozen window (doubled after playtest round 1);
 - plans hidden from the other Side;
 - one move + one ability per Creature per step;
 - phased resolution.

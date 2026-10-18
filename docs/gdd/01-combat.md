@@ -35,9 +35,10 @@ All Creatures, Monsters and abilities named here are placeholders.
 ### R3 Steps (turn structure G, provisional)
 - **R3.1** **Placement phase**: Monsters spawn on the cells given by the Encounter. Each player places their Creatures on free start cells (`place`). The `start_fight` action ends placement, and step 1 begins.
 - **R3.2** The fight is a sequence of **steps**. Each step is a **window**, then a **resolution**. The step number is always visible.
-- **R3.3** **Window**: time is frozen for `step_window_ms` (8 s), solo included. The window ends early once every player is **Ready**.
+- **R3.3** **Window**: time is frozen for `step_window_ms` (16 s since playtest round 1), solo included. The window ends early once every player is **Ready**.
   - Each player builds a **plan** for each of their Creatures. Each Keeper may plan its interaction if it has recharged (R12).
   - Plans can be edited freely until the window closes; nothing is final before that.
+  - **Plan at any time**: while a step's resolution plays, players can already plan the next step. Those plans are built against the board as it will stand when the next window opens (the step's final state), so they are exact. The window still closes on time.
   - **Allies see each other's plans live. The other Side's plans stay hidden** until resolution: players don't see the Monsters' plans, and the AI doesn't see the players' plans.
   - The AI makes the Monsters' plans from the board as it stands when the window opens.
   - A fighter with no plan waits.
@@ -189,16 +190,39 @@ The paper test (D3) can still compare G against A.
 
   What the other Side plans is unknown. The preview shows each enemy's **threat zone** (the cells it could reach and hit this step, given its current AP/MP), so the guess is informed.
 - **R9.2** Previews run the real resolution on a copy of the state with the player's and allies' plans; enemy plans are left empty. Golden tests check that, with the same plans on every Side, preview and result match exactly.
-- **R9.3** **Visual grammar**, so the layers never compete:
-  - karma = tile tint (two shades each way);
-  - forecast = edge chevrons;
-  - Telegraph = cell outline plus steps left;
-  - planned paths = arrows (allies' in their own color);
-  - reachable, target and Area = floor highlights;
-  - threat zones = hatched overlay, on demand;
-  - Cleanse/Kill = an icon over the fighter.
+- **R9.3** **Colour scheme** (user's rule, playtest round 2). **Secondary colours belong to the terrain; primary colours belong to the Sides.**
+  - **Terrain**:
+    - purple = corruption (Corrupted lighter, Blighted darker);
+    - green = purity (Pure lighter, Thriving darker);
+    - Neutral = plain stone;
+    - orange is reserved for a future terrain layer.
 
-  Always on screen: the **window timer bar** with each player's Ready mark, each fighter's **recharge pips**, and the **Land meter** (one bar from `collapse_at` to `bloom_at`, marking board karma now and after this step's Land phase). During resolution, a banner names the current phase.
+    Forecast chevrons and the Land meter use the same purple and green.
+  - **Sides**:
+    - **blue = us**: the local player's Creatures, plans and overlays;
+    - **red = them**: Monsters, their threat zones and their Telegraphs;
+    - **yellow = neutral**: things that belong to no Side, such as Arena interactables (and later any neutral fighter).
+  - **Fighters**: the Side sets a figure's colour, and the creature or Monster kind sets its shape. Identity never depends on hue.
+  - **Plan overlays: shades of the team colour**, from light to dark. The darker the shade, the more committed it is:
+    1. the zone you can use now (reachable cells for Move, valid target cells for an ability): lightest;
+    2. the planned path: slightly darker;
+    3. the predicted end position, where a translucent ghost of the Creature stands: a second tone darker;
+    4. the ability's target and Area: darkest.
+
+    The shades don't change with plan order. In "ability then move", the ability stays darkest and the new position stays at shade 3.
+  - **Other markers**:
+    - Telegraph = cell outline in its source's Side colour, plus steps left;
+    - threat zones = hatched red, on demand;
+    - Cleanse/Kill = an icon over the fighter.
+  - **Always on screen**:
+    - the **window timer bar**, with each player's Ready mark;
+    - each fighter's **recharge pips**;
+    - the **Land meter**: one purple-to-green bar from `collapse_at` to `bloom_at`, marking board karma now and after this step's Land phase.
+  - **During resolution**: a banner names the current phase, and the resolution log on the right lists what happened.
+- **R9.4** **Planning input** (client).
+  - **Move is chosen like an ability**: pick Move or an ability, see its zone (shade 1), then click a cell. The order you choose them in is the plan order (R3.4): Move then ability is "close in and strike"; ability then Move is "hit and run". There is no order toggle.
+  - After the Move is set, an ability's zone is computed from the predicted end position.
+  - Choosing Move or the ability again replaces it. Right-click or Esc clears the step in progress.
 
 ### R10 AI control
 - **R10.1** Each Monster is played by the AI behavior named in its Monster data. In bot fights, Creatures are played by `greedy` with per-creature weights.
@@ -305,12 +329,12 @@ The paper test (D3) can still compare G against A.
 
 ## Open questions
 - **Fizzle cost**: is spending the AP of a fizzled ability fun-frustrating or just frustrating?
-- **Window length**: 8 s solo is meant to sting (bring friends). Offer a longer-window accessibility option?
-- **Land phase every step**: likely too fast at 8 s steps. Tune `land_phase_every_steps` in M2a.
+- **Window length**: 16 s since round 1 (8 s felt too fast). Solo is still meant to sting (bring friends). Offer an accessibility option?
+- **Land phase every step**: may be too fast at this step length. Tune `land_phase_every_steps` in M2a.
 - **Plan order**: move→ability and ability→move both allowed (pilot addition to the user's "move then strike"). Keep both?
 - **Threat zones**: always on, on demand, or not at all (pure mind game)?
 - **Stalemates** without a step limit: what ends a fight nobody can win?
-- **Group size**: how many Creatures per player, solo vs group, so 8 s stays playable?
+- **Group size**: how many Creatures per player, solo vs group, so the window stays playable?
 - **Monster pollution**, **Thriving healing Monsters**, **Downed Creatures blighting**: keep or soften?
 - **`land_sum_threshold` = 5**: tune with the forecast in M2a.
 - **Engagement** costs MP only. Does a tank need a stronger hold?

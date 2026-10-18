@@ -38,7 +38,7 @@ Pillar 1 comes first on purpose: a living battlefield you cannot read is just no
 | Classes | Creatures are the classes. A new playstyle is a new creature, with no story replay | settled |
 | Collection | Creatures are recruited by Cleansing them, never by Killing them | proposed |
 | Outcomes | Victory, Defeat, **Bloom** (board purified: remaining Monsters are Cleansed), **Collapse** (board blighted: everyone loses) | settled |
-| Turn structure | **Discrete steps** (`01-combat.md` R3), adopted provisionally:<br>- an 8 s frozen window, solo included (solo should make you want friends);<br>- plans hidden from the other Side, visible to allies;<br>- one move + one ability per Creature per step;<br>- phased resolution;<br>- AP/MP recharge every few steps | provisional (validate in D3 paper test and M2a) |
+| Turn structure | **Discrete steps** (`01-combat.md` R3), adopted provisionally:<br>- a 16 s frozen window (doubled after round 1), solo included (solo should make you want friends);<br>- plans hidden from the other Side, visible to allies;<br>- one move + one ability per Creature per step;<br>- phased resolution;<br>- AP/MP recharge every few steps | provisional (validate in D3 paper test and M2a) |
 | Randomness | Allowed when visible: odds shown before commit, result after. One seeded PRNG per fight, fixed seeds in tests | settled |
 | Multiplayer | PvM only, no PvP. In groups, each player brings a Keeper and creatures | settled |
 | Battle maps | Every battle starts from the map's authored karma; nothing carries over between battles, which prevents griefing. Zone-wide corruption may change maps later | settled |

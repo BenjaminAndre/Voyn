@@ -101,7 +101,7 @@ Define every term here once; use it exactly everywhere. Names marked *working* m
 | Upkeep | Last part of a step: due Telegraphs, Land effects on occupants, status expiries, refills, Land phase. |
 | Victory | Outcome: no Monster left. |
 | Vulnerable | Status: increases damage taken by a percentage. |
-| Window | The frozen planning time of a step: `step_window_ms` (8 s), solo included; ends early when every player is Ready. |
+| Window | The frozen planning time of a step: `step_window_ms` (16 s), solo included; ends early when every player is Ready. |
 
 ## Decision log
 Current decisions. Replaced ones are listed under "Superseded".
@@ -133,6 +133,10 @@ Current decisions. Replaced ones are listed under "Superseded".
 | 2026-10-16 | M2 split into hot-seat M2a and AI M2b; kits of 2–4 abilities | Budget; cheap first fun check | Pilot, from design-critic |
 | 2026-10-16 | Game time is an integer tick in the state from day one; one swappable scheduler module | Keeps every D3 candidate open, including real-time F, at almost no cost to the turn-based ones | Pilot |
 | 2026-10-16 | **Turn structure G, discrete steps (provisional).** Each step is a frozen window (`step_window_ms` 8 s, solo included), then a resolution. | Co-op sync (friends beat one juggler), no waiting, turn-based networking, readable phases | User, formalized by pilot |
+| 2026-10-18 | Window doubled: `step_window_ms` 8 s → 16 s | Playtest round 1: "a step goes by too fast" | User |
+| 2026-10-18 | Colour scheme: secondary colours for terrain (purple corruption, green purity, orange reserved); primary colours for Sides (blue us, red them, yellow neutral); plan overlays in four shades of the team colour, darker = more committed | Playtest round 2: the old palette mixed terrain and team colours | User |
+| 2026-10-18 | Move is chosen like an ability; plan order = the order you choose them; no order toggle; ghost of the Creature at its predicted position | Playtest round 2: moving felt broken, the toggle was unnecessary | User + pilot |
+| 2026-10-18 | Plan at any time: planning during resolution playback, against the step's final state | Playtest round 2: getting stuck when the window closed mid-plan | User + pilot |
 | 2026-10-16 | Plans are hidden from the other Side, visible to allies; Telegraphs stay visible | A mind game between Sides; co-op coordination inside a Side | User |
 | 2026-10-16 | A plan holds one movement segment + one ability, in either order; another needs another step | User's rule; "either order" (hit-and-run) is a pilot addition | User + pilot |
 | 2026-10-16 | Resolution order: Lead moves → Prep → Dash → Strike (simultaneous) → Trail moves → Upkeep; Fizzle when an ability's conditions fail at resolution (AP still spent) | Deterministic and readable simultaneous resolution | Pilot |

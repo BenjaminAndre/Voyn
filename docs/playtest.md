@@ -18,7 +18,47 @@ To start a round, tell any session "playtest round ready" (the pilot triages) or
 ## Inbox
 *(You write here. Format: `- <hash> <note>`)*
 
-## Round 1: Playable 1
+
+## Round 2 (open): triaged from your notes on `cd4fef9`
+Your notes are kept in quotes. The `[dev]` items can be built now. The `[design]` items wait for your OK.
+
+### `[dev]`: build now
+- [ ] **2.1 Click a figure to select it.** *"I should be able to select a creature by clicking on it."*
+  - **Cause**: a click is traced straight down to the floor (`BoardView.cell_at_screen`). A fighter's body is drawn above and in front of its tile, so clicking the body lands on the cell behind it.
+  - **Fix**: a click or hover on a fighter's figure (body or label) counts as a click on that fighter's cell, for selecting, aiming and Area hover. Figures win over the tile behind them; empty tiles work as now.
+  - **Test**: a click at the projected center of each fighter's body resolves to that fighter's cell.
+- [ ] **2.2 Start each window with no Creature selected.** *"so that when we select one, we get feedback by seeing its movement range."* Today the first Creature is preselected (`main.gd _begin_window`).
+- [ ] **2.3 Double the window: `step_window_ms` 8000 → 16000.** *"A step goes by too fast. Double the length."* I read this as the planning window. If you meant the resolution animation, say so, and we'll slow that instead.
+- [ ] **2.4 Never leave the UI stuck.** *"I got stuck on 'select yellow case for target' when the turn ended while I was planning."* Opening or closing a window cancels any aiming in progress and clears stale hints. No input state may survive into a mode where it can't be finished.
+- [ ] **2.5 Resolution log on the right.** *"The phases and effects that happen could be in a box on the right, which is kinda hidden."* A panel at the right edge lists each phase and its events as they play ("Lead moves: Tank 2 cells", "Strike: Brute takes 22"). It is out of the way, can be collapsed, and holds the last step until the next one plays.
+
+### `[design]`: approved by you, with your changes (build after 2.5)
+- [ ] **2.6 Move is chosen like an ability; no order toggle.** *"Move command just fails."* · *"The toggle 'move after action' is unnecessary."* · *"show 'movement' as an ability"*
+  - **Cause of the failed moves**: once an ability was chosen, every click was read as an aim, so clicking a blue cell did nothing.
+  - **Build** (GDD R9.4):
+    - "Move" is a button next to the abilities.
+    - Pick Move or an ability, see its zone, then click a cell. The order you choose them in is the plan order: Move first is "close in and strike", ability first is "hit and run".
+    - After the Move is set, the ability's zone is computed from the predicted position. Picking one again replaces it. Right-click or Esc clears the step in progress.
+- [ ] **2.7 Ghost preview in shades of the team colour.** *"A confirmed command should be shown in a darker hue."* · *"see a 'ghost preview'"* · *"highlighting the area in different shades of a team"*
+  - **Build** (GDD R9.3), with your shades, light to dark:
+    1. the zone you can use now (Move reach, or the ability's valid targets);
+    2. the chosen path, slightly darker;
+    3. the predicted position, a second tone darker, with a translucent ghost of the Creature on it;
+    4. the ability's target and Area, darkest, with damage numbers on the fighters hit.
+  - The shades don't depend on plan order: if you act first, the ability stays darkest and the new position stays at shade 3.
+- [ ] **2.8 Plan at any time.** *"I should be able to plan during all phases…"*
+  - **Build** (GDD R3.3): while a step's resolution plays, you can already plan the next step, against the step's final state, so those plans are exact. The window still closes on time.
+- [ ] **2.10 New colour scheme.** *"Green/purple (and later orange) should be to the terrain… blue is us, red is them, yellow is neutral."*
+  - **Build** (GDD R9.3):
+    - Karma tints: purple for corruption, green for purity, stone for Neutral. The forecast chevrons and the Land meter use the same purple and green.
+    - Every Creature is blue and every Monster is red, told apart by shape. Today the Archer is violet and the Flier orange, which clashes with the terrain colours.
+    - Monster threat zones and Telegraphs are red; yellow is only for neutral things (Arena interactables later).
+    - Plan overlays use shades of blue (2.7). No other colour may be used for a Side or the terrain.
+
+### `[later]`
+- [ ] **2.9 Judge the rest after these fixes.** *"Everything else is hard to judge due to being unable to move nor use spells correctly."* The questions from round 1 (readability, window length, Creature identity, karma, fight length) carry over to round 3.
+
+## Round 1: Playable 1 (played; notes triaged into Round 2)
 - **Build**: `3e39997` (T13b). Play it at https://benjaminandre.github.io/Voyn/ (every push to `main` replaces it; the commit hash of the build you are on is in the bottom-right corner of the screen, so start your Inbox lines with it).
 - **What it is**: PH Encounter 1 on PH Nave, placeholder content only (`docs/gdd/90-placeholder-content.md`). You control all three Creatures: PH Tank, PH Striker, PH Archer.
 - **How to play**:
