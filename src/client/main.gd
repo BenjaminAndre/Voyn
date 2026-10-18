@@ -41,6 +41,9 @@ var _threat_check: CheckBox
 var _party_box: VBoxContainer
 var _actions_box: VBoxContainer
 var _banner: Label
+var _end_panel: PanelContainer
+var _end_title: Label
+var _end_details: Label
 var _hint: Label
 var _build_label: Label
 var _group: ButtonGroup = ButtonGroup.new()
@@ -247,10 +250,46 @@ func resolve_step() -> void:
 		_begin_window()
 
 
+## The result screen (R3.8): the outcome, Monsters Cleansed out of the total, the final board karma.
 func _end_fight() -> void:
 	mode = Mode.ENDED
-	_banner.text = state.outcome.capitalize()
+	_banner.text = ""
 	_refresh()
+	_set_hint("")
+	_end_title.text = _outcome_title(state.outcome)
+	_end_details.text = result_details()
+	_end_panel.show()
+
+
+func _outcome_title(outcome: String) -> String:
+	match outcome:
+		"victory":
+			return "Victory"
+		"defeat":
+			return "Defeat"
+		"bloom":
+			return "Bloom: the Land flourishes"
+		"collapse":
+			return "Collapse: everyone loses"
+	return outcome.capitalize()
+
+
+## "Monsters Cleansed: k/n", the final board karma and the number of steps played.
+func result_details() -> String:
+	var monsters: int = 0
+	for fighter: FighterState in state.fighters:
+		if not fighter.is_creature():
+			monsters += 1
+	return "Monsters Cleansed: %d/%d
+Final board karma: %d (Collapse %d, Bloom +%d)
+Steps: %d" % [
+		state.cleansed_count, monsters, state.board_karma(), state.collapse_at, state.bloom_at, state.step]
+
+
+## Starts a new fight from the same Encounter with a fresh seed.
+func restart() -> void:
+	_end_panel.hide()
+	_start_fight(Time.get_ticks_msec() % 1000000)
 
 
 # --- Showing it ---
@@ -457,6 +496,32 @@ func _build_ui() -> void:
 	_hint.offset_top = -34
 	_hint.offset_bottom = -8
 	add_child(_hint)
+
+	_end_panel = PanelContainer.new()
+	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.1, 0.1, 0.13, 0.96)
+	panel_style.set_content_margin_all(20)
+	panel_style.set_corner_radius_all(6)
+	_end_panel.add_theme_stylebox_override("panel", panel_style)
+	_end_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	_end_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_end_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var end_box: VBoxContainer = VBoxContainer.new()
+	end_box.add_theme_constant_override("separation", 12)
+	_end_panel.add_child(end_box)
+	_end_title = Label.new()
+	_end_title.add_theme_font_size_override("font_size", 40)
+	_end_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	end_box.add_child(_end_title)
+	_end_details = Label.new()
+	_end_details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	end_box.add_child(_end_details)
+	var restart_button: Button = Button.new()
+	restart_button.text = "Restart"
+	restart_button.pressed.connect(restart)
+	end_box.add_child(restart_button)
+	_end_panel.hide()
+	add_child(_end_panel)
 
 	_build_label = Label.new()
 	_build_label.text = _build_info()

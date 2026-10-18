@@ -111,3 +111,61 @@ func test_the_preview_labels_follow_the_plan() -> void:
 	var result: Dictionary = main.builder.preview()
 	assert_false(result.is_empty(), "whirl is a self ability: a plan exists")
 	assert_eq(main.builder.preview_changes(result).size(), 0, "nobody is near enough to be hit")
+
+
+# --- T13b: fight end and restart ---
+
+
+func _play_to_the_end(main: Control) -> void:
+	var steps: int = 0
+	while main.mode != main.Mode.ENDED and steps < 80:
+		await main.resolve_step()
+		steps += 1
+
+
+func test_the_result_screen_shows_the_outcome_cleansed_and_board_karma() -> void:
+	var main: Control = await _main()
+	await _play_to_the_end(main)
+	assert_eq(main.mode, main.Mode.ENDED)
+	assert_true(main._end_panel.visible)
+	assert_eq(main._end_title.text, "Defeat", "doing nothing loses")
+	var details: String = main._end_details.text
+	assert_string_contains(details, "Monsters Cleansed: 0/4")
+	assert_string_contains(details, "Final board karma: %d" % main.state.board_karma())
+	assert_string_contains(details, "Steps: %d" % main.state.step)
+
+
+func test_result_details_count_the_cleansed_monsters() -> void:
+	var main: Control = await _main()
+	main.state.cleansed_count = 3
+	assert_string_contains(main.result_details(), "Monsters Cleansed: 3/4")
+
+
+func test_outcome_titles() -> void:
+	var main: Control = await _main()
+	assert_eq(main._outcome_title("victory"), "Victory")
+	assert_eq(main._outcome_title("defeat"), "Defeat")
+	assert_string_contains(main._outcome_title("bloom"), "Bloom")
+	assert_string_contains(main._outcome_title("collapse"), "Collapse")
+
+
+func test_restart_starts_a_fresh_fight() -> void:
+	var main: Control = await _main()
+	await _play_to_the_end(main)
+	main.restart()
+	main.board.animation_speed = 0.0
+	assert_false(main._end_panel.visible)
+	assert_eq(main.mode, main.Mode.PLANNING)
+	assert_eq(main.state.step, 1)
+	assert_eq(main.state.status, FightState.STATUS_FIGHTING)
+	assert_eq(main.state.cleansed_count, 0)
+	for fighter: FighterState in main.state.fighters:
+		assert_eq(fighter.hp, fighter.max_hp)
+	assert_eq(main.state.board_karma(), -2, "the Arena starts unchanged")
+	await main.resolve_step()
+	assert_eq(main.state.step, 2, "and it plays")
+
+
+func test_the_result_screen_is_hidden_while_playing() -> void:
+	var main: Control = await _main()
+	assert_false(main._end_panel.visible)

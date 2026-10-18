@@ -26,7 +26,7 @@ Placeholder content only (`docs/gdd/90-placeholder-content.md`). No Telegraphs, 
   - Monsters use the `scripted_chase` behavior from the placeholder spec.
   - Local co-op on one screen, with allies' plans visible.
 - [ ] **T13c Local co-op** (dev, after Playable 1). Several players on one screen, each controlling some Creatures (`ContentLoader.fight_from` already takes a `players` list), allies' plans visible, one Ready per player.
-- [ ] **T13b Fight end + restart** (dev, needs T13). Outcome banner (Victory, Defeat, Bloom, Collapse), Monsters Cleansed k/n, final board karma, a Restart button. Push to `main`: this is **Playable 1**.
+- [x] **T13b Fight end + restart** (dev, needs T13). Outcome banner (Victory, Defeat, Bloom, Collapse), Monsters Cleansed k/n, final board karma, a Restart button. Push to `main`: this is **Playable 1**.
 - [ ] **R1 Playtest round 1** (you). Play the Pages build and write the checklist in `docs/playtest.md`.
 
 ## Next (order set by playtest rounds)
