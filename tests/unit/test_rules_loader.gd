@@ -28,7 +28,7 @@ func test_loads_real_file_as_ints() -> void:
 	for key: String in RulesLoader.KEYS:
 		assert_true(rules.has(key), "has %s" % key)
 		assert_typeof(rules[key], TYPE_INT)
-	assert_eq(rules["step_window_ms"], 8000)
+	assert_eq(rules["step_window_ms"], 16000)
 	assert_eq(rules["land_sum_threshold"], 5)
 
 

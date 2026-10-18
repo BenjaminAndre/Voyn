@@ -1,6 +1,6 @@
 {
   "_doc": "Global combat tuning. Rules: docs/gdd/01-combat.md. Initial guesses, tune via bot fights. HP scale assumption: Creatures 100-200 HP, ability base damage 10-40. Collision damage is fixed, so price push distance in ability data. collapse_at and bloom_at are per Arena (arena data); recharge_steps is per fighter (creature/monster data). Durations and delays are in steps.",
-  "step_window_ms": 8000,
+  "step_window_ms": 16000,
   "land_phase_every_steps": 1,
   "keeper_recharge_steps": 3,
   "engagement_mp_per_enemy": 1,

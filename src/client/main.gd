@@ -1,6 +1,6 @@
 extends Control
 ## The game's main scene (T13): loads PH Encounter 1, places the party, and runs the step loop. Each
-## step is a planning window (an 8 s timer with Ready, plus a dev-only "untimed" switch), then the
+## step is a planning window (a 16 s timer with Ready, plus a dev-only "untimed" switch), then the
 ## rules engine resolves everyone's plans and the board plays the events.
 ##
 ## The client decides no rule. Plans come from PlanBuilder, Monster plans from ScriptedChase, and

@@ -20,7 +20,7 @@ func test_the_game_starts_in_a_planning_window_on_step_one() -> void:
 	assert_eq(main.selected, -1, "no Creature is selected at the start of a window")
 	assert_false(main.board._layers.has("reach"), "so no move range is shown yet")
 	assert_eq(main.state.fighters.size(), 7)
-	assert_eq(main.window_left, 8.0, "step_window_ms")
+	assert_eq(main.window_left, 16.0, "step_window_ms")
 
 
 func test_clicking_cells_builds_a_move_and_selects_creatures() -> void:
@@ -69,7 +69,7 @@ func test_ready_resolves_the_step_and_opens_the_next_window() -> void:
 	assert_eq(main.state.step, 2)
 	assert_gt(Statuses.shield_amount(main.state.fighters[0]), 0, "the Guard shield landed")
 	assert_eq(main.builder.plans().size(), 0, "a fresh window has no plans")
-	assert_eq(main.window_left, 8.0)
+	assert_eq(main.window_left, 16.0)
 
 
 func test_the_monsters_act_on_their_own_plans() -> void:
