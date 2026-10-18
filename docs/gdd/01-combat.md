@@ -42,17 +42,21 @@ All Creatures, Monsters and abilities named here are placeholders.
   - The AI makes the Monsters' plans from the board as it stands when the window opens.
   - A fighter with no plan waits.
 - **R3.4** **Plan**: at most **one movement segment** (a path within current MP) and at most **one ability**, in either order: move then ability ("close in and strike"), or ability then move ("hit and run"). A second ability or a second movement segment needs another step.
+  - **Plan-time path check**: the path starts next to the cell the fighter stands on now, is contiguous, stays inside the Arena on walkable cells, and is no longer than current MP (1 MP per cell).
+  - The path may cross cells that are occupied now, because their occupants may leave. Engagement and blocking are settled only at resolution (R4.8).
+  - Stationary and Rooted fighters cannot plan a move.
 - **R3.5** **Recharge**: AP and MP do not refill every step.
-  - A fighter's pool refills to its max every `recharge_steps` steps, counted from fight start, during Upkeep.
+  - Every fighter starts the fight with full AP and MP.
+  - A fighter's pool refills to its max in the Upkeep of every step whose number is a multiple of its `recharge_steps`. Step 1 is the first step.
   - Unspent points carry over until then, but a refill never overflows the max.
   - Spending now or holding for a better step is part of the decision.
 - **R3.6** **Resolution**, in this fixed order every step. Each phase is animated in turn, with its name shown.
-  1. **Lead moves**: movement segments of plans that start with a move (R4.8).
+  1. **Lead moves**: movement segments of plans that start with a move (R4.8). A plan with only a move counts as a Lead move, so dodging by moving happens before Strike.
   2. **Abilities**, by their `phase` tag:
      - (a) **Prep**: buffs, Shields, purifies, and Keeper interactions;
      - (b) **Dash**: Displacement abilities, Creatures before Monsters, then roster order;
      - (c) **Strike**: damage and statuses, all computed from the state at the start of Strike and applied together. Then defeats are checked (R11.3), then footprints apply.
-  3. **Trail moves**: movement segments of plans that end with a move (R4.8).
+  3. **Trail moves**: movement segments of plans that end with a move (R4.8). A Trail move is cancelled (MP kept) if its fighter is no longer on the cell the path was planned from, e.g. after being displaced in Dash.
   4. **Upkeep**, in order:
      - due Telegraphs resolve, in placement order (R8);
      - Land effects on occupants: Blighted deals `blight_damage` (fixed; Blightborn ignore it), Thriving heals `thrive_heal`;
@@ -92,7 +96,8 @@ The paper test (D3) can still compare G against A.
 - **R4.7** A mover defeated partway along its path stops there.
 - **R4.8** **Simultaneous movement**: in a move phase, every mover advances one cell per **sub-tick**, in lockstep.
   - A mover enters its next cell if the cell is free, or is being vacated in that same sub-tick by a mover that does leave.
-  - **Conflict**: if several movers want the same cell, the one with the shorter remaining path wins, then Creatures before Monsters, then roster order. The others stop for good.
+  - A cell held by a fighter that is not moving in this phase is never free.
+  - **Conflict**: if several movers want the same cell, the one with fewer cells left in its path (counting the contested cell) wins, then Creatures before Monsters, then roster order. The others stop for good: they don't move again in this phase, even if a cell frees up later.
   - Two movers swapping cells, or any longer cycle, are all blocked and stop.
   - MP and Engagement are paid per cell, against positions at the start of the sub-tick. A mover that cannot pay stops.
   - A stopped mover keeps its unspent MP, and its plan's ability (if it comes after the move) may then fizzle (R3.7).
@@ -103,7 +108,11 @@ The paper test (D3) can still compare G against A.
 - **R5.3** A cell always has LoS to itself and to its neighbors.
 
 ### R6 Abilities
-- **R6.1** An ability is checked twice: when it is planned (against the board as it stands, plus allies' plans) and again when it resolves (against the board as it then is). It is valid only if all of these hold:
+- **R6.1** An ability is checked twice:
+  - when it is planned: against the board as it stands, from the cell the plan puts its user on. Allies' plans only feed the preview (R9), never validation;
+  - when it resolves: against the board as it then is.
+
+  Both times, it is valid only if all of these hold:
   1. the user's AP ≥ `ap_cost`;
   2. hex distance from the user to the target cell is within `[min_range, max_range]`;
   3. if `needs_los`: LoS from the user to the target cell;
@@ -145,7 +154,7 @@ The paper test (D3) can still compare G against A.
   - A fighter on the origin is not pushed.
   - **Pull n** uses the opposite direction and stops once the target is adjacent to the origin.
   - Heavy reduces n by 1, to a minimum of 1.
-- **R7.6** A push stops early when the next cell is non-walkable, occupied or outside the Arena. The pushed fighter then takes **collision damage**: `collision_damage_per_cell` × cells not travelled. The fighter or obstacle it hits takes nothing. A pull never deals collision damage. A fighter defeated mid-push stops there with no collision damage. A displaced fighter's later movement in the same step starts from where it landed.
+- **R7.6** A push stops early when the next cell is non-walkable, occupied or outside the Arena. The pushed fighter then takes **collision damage**: `collision_damage_per_cell` × cells not travelled. The fighter or obstacle it hits takes nothing. A pull never deals collision damage. A fighter defeated mid-push stops there with no collision damage. A displaced fighter's Trail move in the same step is cancelled (R3.6).
 - **R7.7** Immovable and Stationary fighters are never displaced and take no collision damage from a push aimed at them.
 
 ### R8 Telegraphs and Mutations

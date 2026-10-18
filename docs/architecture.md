@@ -33,8 +33,18 @@ Export presets must include `data/**/*.json`, because Godot does not export non-
 
 ## Rules engine contract
 - **Turn structure**: discrete steps (GDD R3, candidate G, provisional). The engine works one step at a time.
-- **Setup actions**: `place(creature, cell)`, `start_fight()`, `forfeit()`.
-- **Plans** (GDD R3.4): `{fighter, move_path?, ability?, target_cell?, order: "move_first" | "ability_first"}`, plus `{keeper, interaction, target_cell}`. `validate_plan(state, plan, ally_plans)` checks a plan against the board as it stands.
+- **Setup actions**:
+  - `place(creature, cell)`: any free Creature start cell from Arena data (`creature_start_cells`); re-placing a creature moves it;
+  - `start_fight()`: errors unless every Creature is placed;
+  - `forfeit()`.
+
+  Monsters spawn from the Encounter's `[{monster, cell}]` list at setup.
+- **Plans** (GDD R3.4): `{fighter, from_cell, move_path?, ability?, target_cell?, order: "move_first" | "ability_first"}`, plus `{keeper, interaction, target_cell}`.
+  - `move_path` lists the cells to enter, in order; `from_cell` is where the fighter stood when it planned.
+  - A plan with only a move uses `move_first`.
+  - `validate_plan(state, plan) -> {ok, errors}` checks the plan against the board as it stands (GDD R3.4, R6.1). Allies' plans never affect validation; they only feed previews.
+  - Errors are stable string codes (e.g. `not_your_fighter`, `path_not_contiguous`, `path_too_long`, `cell_not_walkable`, `cannot_move`, `not_enough_ap`, `out_of_range`, `no_los`, `not_on_axis`, `bad_target`, `on_cooldown`), the same shape as the rules loader.
+  - A malformed plan is rejected at commit. A plan that becomes impossible later is not an error: it resolves into `move_blocked` or `fizzled` events.
 - **`resolve_step(state, plans) -> result`**: takes every Side's plans for the step and returns the new state plus a list of events. It runs Lead moves → Prep → Dash → Strike → Trail moves → Upkeep (GDD R3.6). Fizzles are events, not errors. Only setup actions and malformed plans return errors.
 - **Scheduler** (`src/rules/turns/`): the only module that knows the step structure (phase order, window, recharge cadence, Land cadence). If D3 changes, only this module and its tests move.
 - **Time is the step counter**, an integer in the state. Durations, Telegraph delays, cooldowns and recharges are all in steps. The window length (`step_window_ms`) is a client and server concern, not a rules concern: the engine never reads a clock.
@@ -64,9 +74,11 @@ Same state + same action gives the same events on every platform, and in a futur
   - The seed is part of the fight state and of every golden replay. Tests fix their seeds; the game draws a fresh seed per fight and saves it with the replay, so any fight or bug report replays exactly.
   - Only `chance` effects (GDD R6.8) draw from it, at commit, in resolution order. Previews and AI simulations never advance the real generator; each branch is evaluated on its own copy.
 - **Event encoding**:
-  - fighter ID = roster index (Creatures in player then placement order, then Monsters in Encounter order);
+  - fighter ID = roster index: Creatures in player order then party order (from data, never placement order), then Monsters in Encounter order. IDs are never reused; a defeated fighter keeps its ID;
   - cell = `[q, r]`;
-  - each event is an object with `type` and a fixed set of integer/string fields.
+  - each event is an object with `type`, `step` and `phase` (`setup`, `lead_move`, `prep`, `dash`, `strike`, `trail_move`, `upkeep`), plus a fixed set of integer/string fields. For example:
+    - `moved`: fighter, from, to, mp_spent;
+    - `move_blocked`: fighter, at, wanted, reason (`conflict`, `swap`, `cycle`, `occupied`, `no_mp`, `rooted`, `displaced`).
 
   Task T5 writes the full event schema into this file before the first golden replay.
 
