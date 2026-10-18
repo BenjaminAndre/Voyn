@@ -5,7 +5,8 @@ extends RefCounted
 ##     cell and each adjacent cell +1 karma.
 ##   Monster elsewhere -> Killed: its cell becomes Blighted.
 ##   Creature -> Downed: out for this fight, and its cell becomes Blighted too.
-## The fighter leaves the board. The elimination check and Land check belong to the scheduler.
+## The fighter leaves the board, and its statuses and the statuses it applied end (R7.4).
+## The elimination check and Land check belong to the scheduler.
 
 
 ## Applies the defeat to `state` in place and appends events. Does nothing if already defeated.
@@ -26,6 +27,7 @@ static func apply(state: FightState, fighter: FighterState, events: Array[Dictio
 	else:
 		how = "killed"
 	events.append(Events.defeated(fighter.id, how))
+	Statuses.clear_for_defeat(state, fighter, events)
 
 	if how == "cleansed":
 		state.cleansed_count += 1

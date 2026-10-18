@@ -109,7 +109,7 @@ func test_R4_1_a_move_without_enough_mp_stops_and_keeps_mp() -> void:
 
 func test_R4_5_a_rooted_fighter_cannot_move() -> void:
 	var state: FightState = _fight([_v(0, 0)])
-	state.fighters[0].statuses.append({"name": "rooted"})
+	state.fighters[0].statuses.append(TestFixtures.status("rooted"))
 	var result: Dictionary = _step(state, [TestFixtures.move(0, [[1, 0]])])
 	assert_eq(_cell(result["state"], 0), _v(0, 0))
 	assert_eq(_reasons(result["events"]), {0: "rooted"})
@@ -180,7 +180,7 @@ func test_R4_3_entering_a_blighted_cell_deals_fixed_damage() -> void:
 	var result: Dictionary = _step(state, [TestFixtures.move(0, [[1, 0], [2, 0]])])
 	var hits: Array[Dictionary] = TestFixtures.of_type(result["events"], "damaged")
 	assert_eq(hits.size(), 2)
-	assert_eq(_core(hits[0]), {"type": "damaged", "fighter": 0, "amount": 10, "cause": "blight", "hp": 90})
+	assert_eq(_core(hits[0]), {"type": "damaged", "fighter": 0, "amount": 10, "absorbed": 0, "cause": "blight", "hp": 90})
 	assert_eq(hits[1]["hp"], 80)
 	assert_eq(result["state"].fighters[0].hp, 80)
 
@@ -475,7 +475,7 @@ func test_R4_6_equal_cost_paths_take_the_lowest_direction_sequence() -> void:
 
 func test_R4_6_rooted_stationary_and_empty_pools_reach_only_their_own_cell() -> void:
 	var rooted: FightState = _fight([_v(0, 0)])
-	rooted.fighters[0].statuses.append({"name": "rooted"})
+	rooted.fighters[0].statuses.append(TestFixtures.status("rooted"))
 	assert_eq(_reach(rooted).size(), 1)
 	var stationary: FightState = _fight([_v(0, 0)], [], {}, {"traits": ["stationary"]})
 	assert_eq(_reach(stationary).size(), 1)

@@ -8,6 +8,52 @@ static func rules() -> Dictionary:
 	return result["rules"]
 
 
+## A valid ability definition (Defs.ability) built from defaults plus overrides.
+static func ability(id: String, overrides: Dictionary = {}) -> Dictionary:
+	var raw: Dictionary = {
+		"id": id, "phase": "strike", "ap_cost": 3, "cooldown": 0, "target": "enemy",
+		"min_range": 1, "max_range": 1, "needs_los": false, "line_only": false,
+		"area": {"shape": "single"}, "affects": "enemies", "include_user": false,
+		"effects": [{"type": "damage", "base": 18}], "karma": 0,
+	}
+	raw.merge(overrides, true)
+	var result: Dictionary = Defs.ability(raw)
+	assert(result["ok"], "fixture ability %s must be valid: %s" % [id, str(result["errors"])])
+	return result["value"]
+
+
+## Definitions used by the tests: ID -> ability, and statuses.
+static func defs() -> Dictionary:
+	var list: Array[Dictionary] = [
+		ability("bash", {"karma": -1}),
+		ability("lunge", {"max_range": 2, "line_only": true, "effects": [{"type": "damage", "base": 22}], "karma": -1}),
+		ability("whirl", {"target": "self", "min_range": 0, "max_range": 0, "area": {"shape": "burst", "radius": 1}, "ap_cost": 4, "cooldown": 2, "effects": [{"type": "damage", "base": 16}], "karma": -1}),
+		ability("shot", {"min_range": 2, "max_range": 6, "needs_los": true, "effects": [{"type": "damage", "base": 16}]}),
+		ability("guard", {"phase": "prep", "target": "self", "min_range": 0, "max_range": 0, "area": {"shape": "burst", "radius": 1}, "affects": "allies", "include_user": true, "cooldown": 2, "effects": [{"type": "shield", "amount": 20, "duration": 2}], "karma": 1}),
+		ability("seed", {"phase": "prep", "target": "any_cell", "min_range": 1, "max_range": 5, "needs_los": true, "area": {"shape": "burst", "radius": 1}, "affects": "all", "cooldown": 2, "effects": [], "karma": 1}),
+		ability("pin", {"min_range": 2, "max_range": 4, "needs_los": true, "ap_cost": 2, "cooldown": 2, "effects": [{"type": "damage", "base": 6}, {"type": "apply_status", "status": "rooted", "duration": 1, "magnitude": 0}]}),
+		ability("curse", {"effects": [{"type": "apply_status", "status": "vulnerable", "duration": 2, "magnitude": 50}]}),
+		ability("mend", {"phase": "prep", "target": "ally", "affects": "allies", "min_range": 1, "max_range": 3, "effects": [{"type": "heal", "amount": 20}]}),
+		ability("sweep", {"max_range": 2, "line_only": true, "area": {"shape": "line", "length": 3}, "effects": [{"type": "damage", "base": 10}]}),
+		ability("smash", {"effects": [{"type": "damage", "base": 500}]}),
+	]
+	var abilities: Dictionary = {}
+	for entry: Dictionary in list:
+		abilities[entry["id"]] = entry
+	var statuses: Dictionary = {
+		"rooted": {"id": "rooted", "effect": "rooted", "sign": 1},
+		"vulnerable": {"id": "vulnerable", "effect": "damage_taken_pct", "sign": 1},
+		"guarded": {"id": "guarded", "effect": "damage_taken_pct", "sign": -1},
+	}
+	return {"abilities": abilities, "statuses": statuses}
+
+
+## A status instance as Statuses stores it, for putting straight onto a fighter in a test.
+static func status(id: String, magnitude: int = 0, ends_step: int = 999, source: int = 0) -> Dictionary:
+	var def: Dictionary = (defs()["statuses"] as Dictionary)[id]
+	return {"name": id, "effect": def["effect"], "sign": def["sign"], "magnitude": magnitude, "ends_step": ends_step, "source": source}
+
+
 ## A creature entry for the roster. Overrides replace any default.
 static func creature(overrides: Dictionary = {}) -> Dictionary:
 	var entry: Dictionary = {
@@ -41,7 +87,7 @@ static func arena(overrides: Dictionary = {}) -> Dictionary:
 
 ## Creates a fight in placement. Fails the calling test if the data is invalid.
 static func create(roster: Array, arena_overrides: Dictionary = {}, seed: int = 1) -> FightState:
-	var result: Dictionary = RulesEngine.create(arena(arena_overrides), roster, rules(), seed)
+	var result: Dictionary = RulesEngine.create(arena(arena_overrides), roster, rules(), seed, defs())
 	assert(result["ok"], "fixture roster must be valid: %s" % str(result["errors"]))
 	return result["state"]
 

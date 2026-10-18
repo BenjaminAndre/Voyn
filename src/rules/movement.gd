@@ -245,9 +245,7 @@ static func _sub_tick(state: FightState, active: Array[int], paths: Dictionary, 
 			blight[id] = damage
 	for id: int in moving:
 		if blight.has(id):
-			var fighter: FighterState = state.fighters[id]
-			fighter.hp = maxi(0, fighter.hp - int(blight[id]))
-			events.append(Events.damaged(id, int(blight[id]), "blight", fighter.hp))
+			Damage.apply(state, state.fighters[id], int(blight[id]), "blight", events)
 	for id: int in moving:
 		if blight.has(id) and state.fighters[id].hp <= 0:
 			Defeat.apply(state, state.fighters[id], events)

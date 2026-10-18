@@ -55,9 +55,43 @@ static func move_blocked(fighter: int, at: Vector2i, wanted: Vector2i, reason: S
 	return {"type": "move_blocked", "fighter": fighter, "at": cell(at), "wanted": cell(wanted), "reason": reason}
 
 
-## `cause`: "ability", "blight", "thrive", "collision", "crush" or "telegraph". `hp` is the HP left.
-static func damaged(fighter: int, amount: int, cause: String, hp: int) -> Dictionary:
-	return {"type": "damaged", "fighter": fighter, "amount": amount, "cause": cause, "hp": hp}
+## `amount` is the damage dealt, `absorbed` the part a Shield took, `hp` the HP left.
+## `cause`: "ability", "blight", "thrive", "collision", "crush" or "telegraph".
+static func damaged(fighter: int, amount: int, absorbed: int, cause: String, hp: int) -> Dictionary:
+	return {"type": "damaged", "fighter": fighter, "amount": amount, "absorbed": absorbed, "cause": cause, "hp": hp}
+
+
+static func healed(fighter: int, amount: int, cause: String, hp: int) -> Dictionary:
+	return {"type": "healed", "fighter": fighter, "amount": amount, "cause": cause, "hp": hp}
+
+
+## The Shield a fighter holds now (0 when it is gone).
+static func shield_changed(fighter: int, shield: int) -> Dictionary:
+	return {"type": "shield_changed", "fighter": fighter, "shield": shield}
+
+
+static func status_applied(fighter: int, status: String, magnitude: int, ends_step: int) -> Dictionary:
+	return {"type": "status_applied", "fighter": fighter, "status": status, "magnitude": magnitude, "ends_step": ends_step}
+
+
+static func status_ended(fighter: int, status: String) -> Dictionary:
+	return {"type": "status_ended", "fighter": fighter, "status": status}
+
+
+## An ability starts resolving (it was valid). `cell` is its target cell.
+static func ability_used(fighter: int, ability: String, target: Vector2i) -> Dictionary:
+	return {"type": "ability_used", "fighter": fighter, "ability": ability, "cell": cell(target)}
+
+
+## An ability whose conditions no longer held at resolution (R3.7). `reason` is the failed
+## check's code: "not_enough_ap", "out_of_range", "no_los", "not_on_axis", "bad_target" or "on_cooldown".
+static func fizzled(fighter: int, ability: String, target: Vector2i, reason: String) -> Dictionary:
+	return {"type": "fizzled", "fighter": fighter, "ability": ability, "cell": cell(target), "reason": reason}
+
+
+## AP paid for an ability, fizzled or not. `ap` is what the fighter has left.
+static func ap_spent(fighter: int, amount: int, ap: int) -> Dictionary:
+	return {"type": "ap_spent", "fighter": fighter, "amount": amount, "ap": ap}
 
 
 ## `how`: "cleansed", "killed" (Monsters) or "downed" (Creatures).

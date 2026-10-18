@@ -3,9 +3,9 @@ extends RefCounted
 ## The only module that knows the step structure (GDD R3, docs/architecture.md): the phase order,
 ## recharge cadence and checkpoints. If D3 changes, only this file and its tests move.
 ##
-## Phases of one step (R3.6): lead_move, prep, dash, strike, trail_move, upkeep. Prep, Dash and
-## Strike are empty until abilities arrive (T7). Upkeep so far holds only the recharge refills;
-## Telegraphs, Land effects, status expiry and the Land phase slot in around it in T8-T10.
+## Phases of one step (R3.6): lead_move, prep, dash, strike, trail_move, upkeep. Upkeep holds the
+## status expiries and the recharge refills so far; Telegraphs, Land effects and the Land phase slot
+## in around them in T8-T10.
 
 const PHASES: Array[String] = [
 	Events.PHASE_LEAD_MOVE,
@@ -49,9 +49,12 @@ static func resolve_step(state: FightState, plans: Array) -> Dictionary:
 		match phase:
 			Events.PHASE_LEAD_MOVE:
 				Movement.run_phase(next, phase_moves(next, plans, true, events), events)
+			Events.PHASE_PREP, Events.PHASE_DASH, Events.PHASE_STRIKE:
+				Abilities.run_phase(next, plans, phase, events)
 			Events.PHASE_TRAIL_MOVE:
 				Movement.run_phase(next, phase_moves(next, plans, false, events), events)
 			Events.PHASE_UPKEEP:
+				Statuses.expire_due(next, events)
 				_refill(next, events)
 		var ended: bool = check_outcome(next, events)
 		Events.stamp(events, from, next.step, phase)

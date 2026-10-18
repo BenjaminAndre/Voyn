@@ -415,7 +415,7 @@ func test_R3_4_validate_plan_reports_path_problems_with_stable_codes() -> void:
 	var stationary: FightState = _duel({"traits": ["stationary"]})
 	assert_true((_valid(stationary, TestFixtures.move(0, [[-1, 0]]))["errors"] as Array).has("cannot_move"))
 	var rooted: FightState = _duel()
-	rooted.fighters[0].statuses.append({"name": "rooted"})
+	rooted.fighters[0].statuses.append(TestFixtures.status("rooted"))
 	assert_true((_valid(rooted, TestFixtures.move(0, [[-1, 0]]))["errors"] as Array).has("cannot_move"))
 	var walled: FightState = TestFixtures.running(
 		[TestFixtures.creature(), TestFixtures.monster([3, 0])], [C0], {"obstacles": [[-1, 0]]})

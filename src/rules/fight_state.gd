@@ -11,6 +11,9 @@ const STATUS_ENDED: String = "ended"
 ## Shared and never modified, so clones reference the same grid and rules.
 var grid: HexGrid
 var rules: Dictionary = {}
+## Validated definitions by ID (Defs.ability, Defs.status), shared by reference like `rules`.
+var abilities: Dictionary = {}
+var status_defs: Dictionary = {}
 
 var karma: PackedInt32Array = PackedInt32Array()
 var walkable: PackedInt32Array = PackedInt32Array()
@@ -39,12 +42,14 @@ var prng: Prng = null
 ##             "creature_start_cells": [[q, r]], "collapse_at": int, "bloom_at": int}
 ##   roster = [{"side": "creature" | "monster", "player": int, "name": String, "max_hp", "max_ap",
 ##              "max_mp", "power", "recharge_steps": int, "traits": [String],
-##              "cell": [q, r] (Monsters only: the Encounter spawn cell)}]. Stats are inline until
+##              "abilities": [ability ID], "cell": [q, r] (Monsters only: the Encounter spawn cell)}].
+##              Stats are inline until
 ##              data/ has creature and Monster files. Creatures come first, ordered by player then
 ##              party order from data (never placement order); Monsters follow in Encounter order.
 ##              A fighter's ID is its index and is never reused.
+##   defs   = {"abilities": {id: Defs.ability value}, "statuses": {id: Defs.status value}}
 ## Returns {"ok": bool, "state": FightState or null, "errors": Array[String]}.
-static func create(arena: Dictionary, roster: Array, rules: Dictionary, seed: int) -> Dictionary:
+static func create(arena: Dictionary, roster: Array, rules: Dictionary, seed: int, defs: Dictionary = {}) -> Dictionary:
 	var errors: Array[String] = []
 	var radius: Variant = arena.get("radius", null)
 	if typeof(radius) != TYPE_INT or int(radius) < 1:
@@ -53,6 +58,12 @@ static func create(arena: Dictionary, roster: Array, rules: Dictionary, seed: in
 	var state: FightState = FightState.new()
 	state.grid = HexGrid.hexagon(int(radius))
 	state.rules = rules
+	state.abilities = defs.get("abilities", {})
+	state.status_defs = defs.get("statuses", {})
+	for ability_id: Variant in state.abilities.keys():
+		for effect: Dictionary in (state.abilities[ability_id] as Dictionary)["effects"]:
+			if effect["type"] == "apply_status" and not state.status_defs.has(effect["status"]):
+				errors.append("ability %s applies unknown status %s" % [str(ability_id), str(effect["status"])])
 	state.prng = Prng.create(seed)
 	var size: int = state.grid.size()
 	state.karma.resize(size)
@@ -117,6 +128,10 @@ static func create(arena: Dictionary, roster: Array, rules: Dictionary, seed: in
 		fighter.recharge_steps = int(entry.get("recharge_steps", 0))
 		for trait_name: Variant in entry.get("traits", []):
 			fighter.traits.append(str(trait_name))
+		for ability_id: Variant in entry.get("abilities", []):
+			if not state.abilities.has(str(ability_id)):
+				errors.append("%s: unknown ability %s" % [fighter.name, str(ability_id)])
+			fighter.abilities.append(str(ability_id))
 		if fighter.max_hp < 1:
 			errors.append("%s: max_hp must be >= 1" % fighter.name)
 		if fighter.recharge_steps < 1:
@@ -152,6 +167,8 @@ func clone() -> FightState:
 	var copy: FightState = FightState.new()
 	copy.grid = grid
 	copy.rules = rules
+	copy.abilities = abilities
+	copy.status_defs = status_defs
 	copy.karma = karma.duplicate()
 	copy.walkable = walkable.duplicate()
 	copy.blocks_los = blocks_los.duplicate()

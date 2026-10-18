@@ -8,7 +8,8 @@ extends RefCounted
 ## Only "fighter" is required, and a plan with only a fighter means "wait". A plan that moves (or
 ## later, uses an ability) must carry `from_cell`, the cell the fighter stood on when it planned.
 ## `move_path` lists the cells entered, own cell excluded. A plan with no ability resolves its move
-## in Lead moves. Abilities arrive with T7; keeper plans with T10b.
+## in Lead moves. `ability` is an ID from the fighter's kit; a `self` ability may leave out
+## `target_cell`. Keeper plans arrive with T10b.
 ##
 ## Two layers. `shape_errors` finds malformed plans, which resolve_step refuses (nothing changes).
 ## `validate` adds the rules a player must respect while planning, against the board as it stands:
@@ -43,15 +44,23 @@ static func shape_errors(state: FightState, plan: Variant) -> Array[String]:
 	var fighter: FighterState = state.fighters[id]
 	if dict.has("order") and not [ORDER_MOVE_FIRST, ORDER_ABILITY_FIRST].has(dict["order"]):
 		errors.append("bad_order")
+	var ability_id: String = ""
 	if dict.has("ability"):
 		if typeof(dict["ability"]) != TYPE_STRING:
 			errors.append("bad_ability")
-		elif str(dict["ability"]) != "":
-			errors.append("abilities_unavailable")
+		else:
+			ability_id = str(dict["ability"])
+	if ability_id != "":
+		if not state.abilities.has(ability_id):
+			errors.append("unknown_ability")
+		elif not fighter.abilities.has(ability_id):
+			errors.append("ability_not_known")
+		elif str((state.abilities[ability_id] as Dictionary)["target"]) != "self" and not dict.has("target_cell"):
+			errors.append("missing_target_cell")
 	if dict.has("target_cell") and not _is_cell(dict["target_cell"]):
 		errors.append("bad_target_cell")
 
-	var acts: bool = not (dict.get("move_path", []) is Array and (dict.get("move_path", []) as Array).is_empty())
+	var acts: bool = ability_id != "" or not (dict.get("move_path", []) is Array and (dict.get("move_path", []) as Array).is_empty())
 	if dict.has("from_cell"):
 		if not _is_cell(dict["from_cell"]):
 			errors.append("bad_from_cell")
@@ -104,6 +113,18 @@ static func validate(state: FightState, plan: Variant, player: int = -1) -> Dict
 				break
 		if path.size() > fighter.mp:
 			errors.append("path_too_long")
+	var ability_id: String = str(dict.get("ability", ""))
+	if ability_id != "":
+		# R6.1: checked from the cell the plan puts the user on, against the board as it stands.
+		var user_cell: int = fighter.cell
+		if not path.is_empty() and is_lead_move(dict):
+			user_cell = path[path.size() - 1]
+		var target: Vector2i = state.grid.cell_at(user_cell)
+		if dict.has("target_cell"):
+			target = Vector2i(int((dict["target_cell"] as Array)[0]), int((dict["target_cell"] as Array)[1]))
+		var reason: String = Abilities.check(state, fighter, state.abilities[ability_id], user_cell, target)
+		if reason != "":
+			errors.append(reason)
 	return {"ok": errors.is_empty(), "errors": errors}
 
 

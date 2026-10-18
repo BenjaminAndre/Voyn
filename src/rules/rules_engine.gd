@@ -8,8 +8,8 @@ extends RefCounted
 
 
 ## Builds a fight in its Placement phase. See FightState.create for the data shapes.
-static func create(arena: Dictionary, roster: Array, rules: Dictionary, seed: int) -> Dictionary:
-	return FightState.create(arena, roster, rules, seed)
+static func create(arena: Dictionary, roster: Array, rules: Dictionary, seed: int, defs: Dictionary = {}) -> Dictionary:
+	return FightState.create(arena, roster, rules, seed, defs)
 
 
 ## R3.1 Puts a Creature on a free start cell. May be repeated to move it until `start_fight`.
@@ -68,6 +68,17 @@ static func resolve_step(state: FightState, plans: Array) -> Dictionary:
 ## Query: the cells a fighter can reach this step. See Movement.reachable.
 static func reachable(state: FightState, fighter_id: int) -> Dictionary:
 	return Movement.reachable(state, state.fighters[fighter_id])
+
+
+## Query: the cells (indices) a fighter could target with an ability from `from_cell`, on the board
+## as it stands. See Abilities.targets.
+static func targets(state: FightState, fighter_id: int, ability_id: String, from_cell: Vector2i) -> PackedInt32Array:
+	return Abilities.targets(state, state.fighters[fighter_id], state.abilities[ability_id], state.grid.index_of(from_cell))
+
+
+## Query: the cells (indices) a fighter could reach and hit this step. See Abilities.threat_zone.
+static func threat_zone(state: FightState, fighter_id: int) -> PackedInt32Array:
+	return Abilities.threat_zone(state, state.fighters[fighter_id])
 
 
 ## Setup events are stamped with the step the action was taken in and the phase "setup".

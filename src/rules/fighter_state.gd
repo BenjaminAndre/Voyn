@@ -22,8 +22,13 @@ var traits: PackedStringArray = PackedStringArray()
 ## Index into the Arena's cells; -1 while unplaced or after defeat.
 var cell: int = -1
 var alive: bool = true
-## Active statuses, each {"name": String, ...}. Filled by abilities (T7); movement only reads "rooted".
+## Active statuses, each {"name": String, "effect": String, "sign": int, "magnitude": int,
+## "ends_step": int, "source": int} (see Statuses).
 var statuses: Array[Dictionary] = []
+## Ability IDs this fighter can plan, from its creature or Monster data.
+var abilities: PackedStringArray = PackedStringArray()
+## Ability ID -> the first step it can be used again (R6.1 cooldown).
+var cooldowns: Dictionary = {}
 
 
 func is_creature() -> bool:
@@ -64,4 +69,6 @@ func clone() -> FighterState:
 	copy.alive = alive
 	for status: Dictionary in statuses:
 		copy.statuses.append(status.duplicate(true))
+	copy.abilities = abilities.duplicate()
+	copy.cooldowns = cooldowns.duplicate()
 	return copy

@@ -91,7 +91,14 @@ Every event carries `type`, `step` (0 during placement) and `phase`. The phase i
 | `phase_started` | name | `lead_move`, `prep`, `dash`, `strike`, `trail_move` or `upkeep`; `phase` equals `name` |
 | `moved` | fighter, from, to, mp_spent, mp_left | one cell entered in one sub-tick, with Engagement paid (`mp_left` feeds the MP pips) |
 | `move_blocked` | fighter, at, wanted, reason | `at` = where it stands, `wanted` = the cell it could not enter |
-| `damaged` | fighter, amount, cause, hp | `hp` = HP left; `cause` as above |
+| `damaged` | fighter, amount, absorbed, cause, hp | `amount` = damage dealt, `absorbed` = the part a Shield took, `hp` = HP left; `cause` as above |
+| `healed` | fighter, amount, cause, hp | |
+| `ability_used` | fighter, ability, cell | an ability started resolving; `cell` = its target |
+| `fizzled` | fighter, ability, cell, reason | `reason` = the failed R6.1 check: `not_enough_ap`, `out_of_range`, `no_los`, `not_on_axis`, `bad_target`, `on_cooldown` |
+| `ap_spent` | fighter, amount, ap | paid for every ability, fizzled or not; `ap` = left |
+| `shield_changed` | fighter, shield | the Shield held now (0 = gone) |
+| `status_applied` | fighter, status, magnitude, ends_step | |
+| `status_ended` | fighter, status | expiry, a Shield used up, or the fighter or its source defeated |
 | `defeated` | fighter, how | `cleansed`, `killed` or `downed`; followed by its `karma_changed` events |
 | `karma_changed` | cell, from, to | in cell order within one cause |
 | `refilled` | fighter, ap, mp | only if a pool actually changed |
@@ -101,13 +108,24 @@ Every event carries `type`, `step` (0 during placement) and `phase`. The phase i
 
 Order inside a move sub-tick: every `move_blocked` (ascending fighter ID), then every `moved` (ascending ID), then blight `damaged` events (ascending ID), then `defeated` events with their `karma_changed`.
 
-Still to come with T7-T10b: `ap_spent`, `fizzled`, `healed`, `shield_changed`, `displaced`, `relocated`, `collided`, `status_applied`, `status_ended`, `cell_mutated`, `chance_rolled`, `telegraph_placed`, `telegraph_resolved`, `interacted`, `land_phase`. Each adds its row here with its task.
+Still to come with T8-T10b: `displaced`, `relocated`, `collided`, `cell_mutated`, `chance_rolled`, `telegraph_placed`, `telegraph_resolved`, `interacted`, `land_phase`. Each adds its row here with its task.
+
+### Content schemas (T7)
+Validated by `Defs` (`src/rules/defs.gd`): floats become ints, unknown and missing keys are errors, `_doc` is allowed and dropped. One JSON object per file under `data/abilities/`, `data/statuses/`, `data/behaviors/`.
+- **Ability**: `{id, name?, phase: "prep" | "dash" | "strike", ap_cost, cooldown, target: "any_cell" | "empty_cell" | "any_fighter" | "enemy" | "ally" | "self", min_range, max_range, needs_los, line_only, area, affects: "enemies" | "allies" | "all", include_user?, effects: [], karma}`.
+  - `area` = `{shape: "single"}`, `{shape: "burst", radius}` or `{shape: "line", length}` (a line needs `line_only`).
+  - `effects` may be empty (a footprint-only ability such as Seed) and resolve in listed order. So far: `{type: "damage", base}`, `{type: "heal", amount}`, `{type: "shield", amount, duration}`, `{type: "apply_status", status, duration, magnitude}`. `push`/`pull` arrive with T9 and `mutate`/`telegraph` with T10; the loader rejects them until then. `chance` is rejected until GDD R6.8 says whether it rolls per effect or per fighter.
+  - `affects`: `enemies` = the other Side, `allies` = the user's Side without the user, `all` = everyone in the Area but the user; `include_user` adds the user when it stands in the Area.
+  - `cooldown` N: used in step s, usable again in step s + N (so 1 never restricts). A fizzled ability starts its cooldown too.
+- **Status**: `{id, name?, effect: "shield" | "rooted" | "damage_taken_pct" | "damage_dealt_pct", sign: 1 | -1}`. An instance on a fighter is `{name, effect, sign, magnitude, ends_step, source}`; a duration N applied in step s ends in the Upkeep of step s + N. Shield is built in and needs no file.
+- **Behavior**: `{id, kind: "scripted_chase"}` (`greedy` arrives with T14).
+- **Fighter data** gains `abilities: [ability ID]`.
 
 ### Data shapes (provisional, until D2/G1 fix the content files)
 - **Arena**: `{radius, obstacles: [[q, r]], karma: [[q, r, k]], creature_start_cells: [[q, r]], collapse_at, bloom_at}`.
 - **Roster**: Creatures first (player order then party order), then Monsters in Encounter order; each entry `{side: "creature" | "monster", player, name, max_hp, max_ap, max_mp, power, recharge_steps, traits, cell (Monsters)}`. Stats are inline until creature and Monster data files exist.
 - **State** (`FightState`): the grid and rules by shared reference; per-cell packed arrays (`karma`, `walkable`, `blocks_los`, `occupant`); fighters; `step`; `status` (`placement`, `fighting`, `ended`); `outcome`; the fight's PRNG. `clone()` copies it in one call.
-- **Plan checks**: `Plans.shape_errors` (malformed or stale plans, refused by `resolve_step` with nothing changed) and `validate_plan(state, plan, player = -1)` (plan-time rules: `not_fighting`, `not_your_fighter`, `cannot_move`, `path_too_long`, `cell_not_walkable`, plus the shape codes: `missing_fighter`, `fighter_not_active`, `bad_order`, `missing_from_cell`, `bad_from_cell`, `stale_from_cell`, `bad_move_path`, `path_outside_arena`, `path_not_contiguous`, `path_repeats_cell`, `unknown_key:<key>`, `abilities_unavailable`, `keeper_plans_unavailable`).
+- **Plan checks**: `Plans.shape_errors` (malformed or stale plans, refused by `resolve_step` with nothing changed) and `validate_plan(state, plan, player = -1)` (plan-time rules: `not_fighting`, `not_your_fighter`, `cannot_move`, `path_too_long`, `cell_not_walkable`, plus the shape codes: `missing_fighter`, `fighter_not_active`, `bad_order`, `missing_from_cell`, `bad_from_cell`, `stale_from_cell`, `bad_move_path`, `path_outside_arena`, `path_not_contiguous`, `path_repeats_cell`, `unknown_key:<key>`, `unknown_ability`, `ability_not_known`, `missing_target_cell`, `bad_target_cell`, `keeper_plans_unavailable`; for abilities also the R6.1 codes `not_enough_ap`, `out_of_range`, `no_los`, `not_on_axis`, `bad_target`, `on_cooldown`, checked from the cell the plan puts the user on).
 
 ### LoS algorithm (GDD R5)
 Cube coordinates: `x = q`, `z = r`, `y = −q − r`. The algorithm samples the exact line, scaled by 12N, and adds a tiny integer nudge (`±(1, 2, −3)`). The nudge breaks exact ties without changing any non-tie result, and no ties remain after it. The nudged lines A→B and B→A visit the same cells, so LoS is symmetric.
