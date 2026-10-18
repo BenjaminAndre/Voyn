@@ -14,9 +14,11 @@ const ENCOUNTER_ID: String = "ph_encounter_1"
 
 enum Mode { PLANNING, RESOLVING, ENDED }
 
-## Plan overlays are shades of our blue, light to dark (R9.3): zone, path, predicted position, target + Area.
+## Plan overlays are four shades of our blue, light to dark (R9.3): 1 the zone you can use, 2 the
+## chosen path, 3 the predicted position (with a ghost), 4 the ability's target and Area.
 const COLOR_REACH: Color = Palette.US_SHADES[0]
 const COLOR_PATH: Color = Palette.US_SHADES[1]
+const COLOR_PREDICTED: Color = Palette.US_SHADES[2]
 const COLOR_TARGET: Color = Palette.US_SHADES[0]
 const COLOR_AREA: Color = Palette.US_SHADES[3]
 const COLOR_THREAT: Color = Palette.THREAT
@@ -312,7 +314,7 @@ func _on_cell_hovered(cell: Vector2i) -> void:
 			var steps: Array[int] = []
 			for step_cell: Vector2i in reach[index]["path"]:
 				steps.append(state.grid.index_of(step_cell))
-			board.set_overlay("hover_path", steps, COLOR_PATH)
+			board.set_overlay("hover_path", steps, COLOR_REACH)
 
 
 # --- Resolving a step ---
@@ -328,6 +330,7 @@ func resolve_step() -> void:
 	last_message = ""
 	_refresh_hint()
 	board.clear_overlays()
+	board.set_ghosts({})
 	board.set_previews({})
 	_ready_button.disabled = true
 	var plans: Array = builder.plans()
@@ -544,13 +547,10 @@ func _ability_tip(ability: Dictionary) -> String:
 
 func _update_overlays() -> void:
 	board.clear_overlays()
+	board.set_ghosts({})
 	if mode != Mode.PLANNING:
 		return
-	var path_cells: Array[int] = []
-	for id: int in builder.drafts.keys():
-		for cell: Vector2i in builder.draft(id)["path"]:
-			path_cells.append(state.grid.index_of(cell))
-	board.set_overlay("path", path_cells, COLOR_PATH)
+	# Light to dark, so each shade is drawn over the lighter ones: 1 the zone being aimed.
 	if selected >= 0:
 		if targeting:
 			var targets: Array[int] = []
@@ -559,6 +559,33 @@ func _update_overlays() -> void:
 			board.set_overlay("target", targets, COLOR_TARGET)
 		elif moving:
 			board.set_overlay("reach", builder.reachable_cells(selected), COLOR_REACH)
+	# 2 the chosen paths, 3 the predicted positions (and a ghost on each), 4 the abilities' Areas.
+	var path_cells: Array[int] = []
+	var end_cells: Array[int] = []
+	var ghosts: Dictionary = {}
+	var area_cells: Array[int] = []
+	var ids: Array[int] = []
+	for id: int in builder.drafts.keys():
+		ids.append(id)
+	ids.sort()
+	for id: int in ids:
+		var path: Array = builder.draft(id)["path"]
+		if not path.is_empty():
+			for cell: Vector2i in path:
+				path_cells.append(state.grid.index_of(cell))
+			var end: int = state.grid.index_of(path[path.size() - 1])
+			end_cells.append(end)
+			ghosts[id] = end
+		var plan: Dictionary = builder.plan_for(id)
+		if plan.has("ability"):
+			var aimed: Array = plan["target_cell"]
+			for index: int in builder.area_cells(id, Vector2i(int(aimed[0]), int(aimed[1]))):
+				if not area_cells.has(index):
+					area_cells.append(index)
+	board.set_overlay("path", path_cells, COLOR_PATH)
+	board.set_overlay("predicted", end_cells, COLOR_PREDICTED)
+	board.set_overlay("plan_area", area_cells, COLOR_AREA)
+	board.set_ghosts(ghosts)
 	if _threat_check.button_pressed:
 		var zone: Dictionary = {}
 		for monster: FighterState in state.living(FighterState.SIDE_MONSTERS):

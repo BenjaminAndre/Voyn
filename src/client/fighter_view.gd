@@ -55,6 +55,11 @@ func set_hp_text(hp: int, fighter: FighterState) -> void:
 		_label.text += " +%d" % shield
 
 
+## The figure's mesh, so a ghost can copy its shape.
+func body_mesh() -> Mesh:
+	return _body.mesh
+
+
 ## Shows what the plan preview says will happen to this fighter ("" hides it).
 func set_preview(text: String, color: Color) -> void:
 	_preview.visible = text != ""

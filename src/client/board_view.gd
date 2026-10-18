@@ -30,6 +30,7 @@ var _tile_materials: Array[StandardMaterial3D] = []
 var _fighters: Dictionary = {}
 var _layers: Dictionary = {}
 var _forecast_root: Node3D
+var _ghost_root: Node3D
 var _camera: Camera3D
 var _hovered: Vector2i = Vector2i(9999, 9999)
 var _tile_mesh: ArrayMesh
@@ -39,14 +40,17 @@ var _slab_mesh: ArrayMesh
 func _ready() -> void:
 	_forecast_root = Node3D.new()
 	add_child(_forecast_root)
+	_ghost_root = Node3D.new()
+	add_child(_ghost_root)
 
 
 ## Builds the tiles, the pillars, the camera and the fighters for a fight.
 func setup(new_state: FightState) -> void:
 	state = new_state
 	for child: Node in get_children():
-		if child != _forecast_root:
+		if child != _forecast_root and child != _ghost_root:
 			child.queue_free()
+	set_ghosts({})
 	_tiles.clear()
 	_tile_materials.clear()
 	_fighters.clear()
@@ -133,6 +137,27 @@ func clear_overlay(layer: String) -> void:
 	if _layers.has(layer):
 		(_layers[layer] as Node3D).queue_free()
 		_layers.erase(layer)
+
+
+## Ghosts (R9.3, shade 3): a translucent copy of each fighter's figure on the cell it is planned to
+## end up on. `cells` maps fighter id to a cell index; every other ghost is removed.
+func set_ghosts(cells: Dictionary) -> void:
+	for child: Node in _ghost_root.get_children():
+		_ghost_root.remove_child(child)  # now, so a count taken right after is right
+		child.queue_free()
+	for id: int in cells.keys():
+		var view: FighterView = _fighters.get(id)
+		if view == null:
+			continue
+		var ghost: MeshInstance3D = MeshInstance3D.new()
+		ghost.mesh = view.body_mesh()
+		var material: StandardMaterial3D = StandardMaterial3D.new()
+		var tint: Color = Palette.US_SHADES[2]
+		material.albedo_color = Color(tint.r, tint.g, tint.b, 0.5)
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		ghost.material_override = material
+		ghost.position = _stand_point(int(cells[id])) + Vector3(0, 0.45, 0)
+		_ghost_root.add_child(ghost)
 
 
 ## Shows preview texts above fighters: {fighter id: {"text": String, "color": Color}}. Others are cleared.
