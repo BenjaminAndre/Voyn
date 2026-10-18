@@ -64,6 +64,12 @@ Export presets must include `data/**/*.json`, because Godot does not export non-
 - **Keep copies cheap**: AI and previews copy the state many times per step, so store per-cell data (karma, walkable, blocks_los) as packed int arrays indexed by cell, not as dictionaries of objects.
 - **No undo**: plans are editable until the window closes, so the engine only ever sees final plans.
 
+## Client views (T12+)
+- `src/client/hex_layout.gd`: flat-top hexes in the XZ plane, axial `(q, r)` to world and back (floats are fine here).
+- `src/client/board_view.gd`: tiles tinted by karma (two shades each way), pillars, fighters (`fighter_view.gd`), named highlight layers, forecast markers (a green cone where the next Land phase purifies, a red inverted cone where it corrupts), the fixed orthographic camera, mouse picking by casting a ray onto the tile plane, and `play_events(events, final_state)`: plays a step's events in order with tweens only (slides, floating numbers, tints) and then snaps to the final state. It decides no rule.
+- `src/client/land_meter.gd`: the Land meter bar.
+- `src/client/main.gd`: the main scene. Dev option: `-- --screenshot=<path>` saves one frame as a PNG and quits.
+
 ## Determinism and portability
 Same state + same action gives the same events on every platform, and in a future Go port.
 - **Integers only** in `src/rules/` and `src/ai/`: int64 range, no floats anywhere (LoS included), integer AI weights.

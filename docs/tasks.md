@@ -18,7 +18,7 @@ Placeholder content only (`docs/gdd/90-placeholder-content.md`). No Telegraphs, 
 - [x] **T8 The Land in fights** (dev, needs T7). Footprints incl. the Monster cap in the loader, Upkeep blight/thrive on occupants, Cleansed / Killed / Downed, Renewal, the Land phase every `land_phase_every_steps`, board karma, Collapse and Bloom checkpoints (R11, R3.6, R3.8).
 - [x] **T9 Displacement** (dev, needs T7). Push, pull, Heavy, collision damage, farthest-first order, blight entered mid-push, Immovable/Stationary, Trail move cancelled after displacement (R7.5–R7.7, R3.6).
 - [x] **G1 Placeholder data** (grunt, needs T7). Turn `docs/gdd/90-placeholder-content.md` into JSON under `data/` (creatures, abilities, statuses, monsters, behaviors, arenas, encounters), following the T7 schemas. Dev spot-checks it with the loader and a load test.
-- [ ] **T12 Minimal 3D board** (dev, needs T5, G1). Hex prism tiles from Arena data, tinted by karma; forecast chevrons; Land meter (R9.3); fixed orthographic camera; placeholder meshes by Side and creature; phase-by-phase animation from events (tweens only).
+- [x] **T12 Minimal 3D board** (dev, needs T5, G1). Hex prism tiles from Arena data, tinted by karma; forecast chevrons; Land meter (R9.3); fixed orthographic camera; placeholder meshes by Side and creature; phase-by-phase animation from events (tweens only).
 - [ ] **T13 Planning UI** (dev, needs T8, T9, T12).
   - The 8 s window timer with Ready, plus a dev-only "untimed" toggle (not a game rule).
   - Plan building per Creature (path + ability + order), and recharge pips.
