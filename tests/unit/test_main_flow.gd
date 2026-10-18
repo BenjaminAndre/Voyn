@@ -5,9 +5,10 @@ extends GutTest
 func _main() -> Control:
 	var scene: Control = load("res://src/client/main.tscn").instantiate()
 	add_child_autofree(scene)
-	await get_tree().process_frame
-	scene.board.animation_speed = 0.0
+	# _ready has run: stop the window timer before the first frame can tick it down.
 	scene.untimed = true
+	scene.board.animation_speed = 0.0
+	await get_tree().process_frame
 	return scene
 
 
