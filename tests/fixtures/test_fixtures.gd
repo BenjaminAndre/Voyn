@@ -3,9 +3,12 @@ extends RefCounted
 ## Test-only builders for arenas, fighters and fights (never real content; see docs/tasks.md M1).
 
 
-static func rules() -> Dictionary:
+## The real rules.json values, with optional overrides for a test.
+static func rules(overrides: Dictionary = {}) -> Dictionary:
 	var result: Dictionary = DataFiles.load_rules()
-	return result["rules"]
+	var values: Dictionary = (result["rules"] as Dictionary).duplicate()
+	values.merge(overrides, true)
+	return values
 
 
 ## A valid ability definition (Defs.ability) built from defaults plus overrides.
@@ -86,8 +89,8 @@ static func arena(overrides: Dictionary = {}) -> Dictionary:
 
 
 ## Creates a fight in placement. Fails the calling test if the data is invalid.
-static func create(roster: Array, arena_overrides: Dictionary = {}, seed: int = 1) -> FightState:
-	var result: Dictionary = RulesEngine.create(arena(arena_overrides), roster, rules(), seed, defs())
+static func create(roster: Array, arena_overrides: Dictionary = {}, seed: int = 1, rules_overrides: Dictionary = {}) -> FightState:
+	var result: Dictionary = RulesEngine.create(arena(arena_overrides), roster, rules(rules_overrides), seed, defs())
 	assert(result["ok"], "fixture roster must be valid: %s" % str(result["errors"]))
 	return result["state"]
 
@@ -109,14 +112,14 @@ static func start(state: FightState, cells: Array[Vector2i]) -> FightState:
 
 ## Shortcut: a running fight with Creatures at `creature_cells` and Monsters as given in the roster.
 ## Unless `arena_overrides` sets its own start cells, the Creatures' cells become the start cells.
-static func running(roster: Array, creature_cells: Array[Vector2i], arena_overrides: Dictionary = {}, seed: int = 1) -> FightState:
+static func running(roster: Array, creature_cells: Array[Vector2i], arena_overrides: Dictionary = {}, seed: int = 1, rules_overrides: Dictionary = {}) -> FightState:
 	var overrides: Dictionary = arena_overrides.duplicate()
 	if not overrides.has("creature_start_cells"):
 		var starts: Array = []
 		for cell: Vector2i in creature_cells:
 			starts.append([cell.x, cell.y])
 		overrides["creature_start_cells"] = starts
-	return start(create(roster, overrides, seed), creature_cells)
+	return start(create(roster, overrides, seed, rules_overrides), creature_cells)
 
 
 ## A move-only plan. `from_cell` is filled in by `with_from` / `resolve` from the state.

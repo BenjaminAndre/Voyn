@@ -76,6 +76,16 @@ static func targets(state: FightState, fighter_id: int, ability_id: String, from
 	return Abilities.targets(state, state.fighters[fighter_id], state.abilities[ability_id], state.grid.index_of(from_cell))
 
 
+## Query (R11.5): what the next Land phase would change, from the board as it stands:
+## {"changed": PackedInt32Array (cell indices in cell order), "next": PackedInt32Array (karma after),
+## "board_karma_after": int, "steps_until": int (0 = in this step's Upkeep)}.
+static func forecast(state: FightState) -> Dictionary:
+	var every: int = int(state.rules["land_phase_every_steps"])
+	var result: Dictionary = Land.forecast(state.grid, state.karma, int(state.rules["land_sum_threshold"]))
+	result["steps_until"] = (every - state.step % every) % every
+	return result
+
+
 ## Query: the cells (indices) a fighter could reach and hit this step. See Abilities.threat_zone.
 static func threat_zone(state: FightState, fighter_id: int) -> PackedInt32Array:
 	return Abilities.threat_zone(state, state.fighters[fighter_id])

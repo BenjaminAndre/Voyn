@@ -3,9 +3,9 @@ extends RefCounted
 ## The only module that knows the step structure (GDD R3, docs/architecture.md): the phase order,
 ## recharge cadence and checkpoints. If D3 changes, only this file and its tests move.
 ##
-## Phases of one step (R3.6): lead_move, prep, dash, strike, trail_move, upkeep. Upkeep holds the
-## status expiries and the recharge refills so far; Telegraphs, Land effects and the Land phase slot
-## in around them in T8-T10.
+## Phases of one step (R3.6): lead_move, prep, dash, strike, trail_move, upkeep. Upkeep runs, in
+## order: Land effects on occupants, status expiries, refills, the Land phase. Telegraphs slot in
+## first with T10.
 
 const PHASES: Array[String] = [
 	Events.PHASE_LEAD_MOVE,
@@ -54,8 +54,7 @@ static func resolve_step(state: FightState, plans: Array) -> Dictionary:
 			Events.PHASE_TRAIL_MOVE:
 				Movement.run_phase(next, phase_moves(next, plans, false, events), events)
 			Events.PHASE_UPKEEP:
-				Statuses.expire_due(next, events)
-				_refill(next, events)
+				_upkeep(next, events)
 		var ended: bool = check_outcome(next, events)
 		Events.stamp(events, from, next.step, phase)
 		if ended:
@@ -64,25 +63,72 @@ static func resolve_step(state: FightState, plans: Array) -> Dictionary:
 	return _result(true, next, events, errors)
 
 
-## Elimination check (R3.8), run after every phase. Ends the fight, emits `fight_ended` and returns
-## true if a Side is out of fighters. Collapse and Bloom (the Land check) join in T8.
-## When both Sides are gone at once the first match wins: Victory comes before Defeat.
+## The Land check (R11.6) and the elimination check (R3.8), run after every phase and sub-phase.
+## Ends the fight, emits `fight_ended` and returns true if an outcome applies. The first match wins:
+## Collapse, Bloom, Victory (no Monster left), Defeat (no Creature left). So Collapse beats a Victory
+## won on the same blow, and when both Sides are gone at once it is a Victory.
 static func check_outcome(state: FightState, events: Array[Dictionary]) -> bool:
 	if state.status == FightState.STATUS_ENDED:
 		return true
-	if state.living_count(FighterState.SIDE_MONSTERS) == 0:
+	var board: int = state.board_karma()
+	if board <= state.collapse_at:
+		_end(state, "collapse", events)
+	elif board >= state.bloom_at:
+		# Bloom: the Keepers' Side wins, and every remaining Monster is Cleansed (R3.8).
+		for monster: FighterState in state.living(FighterState.SIDE_MONSTERS):
+			Defeat.apply(state, monster, events, "cleansed")
+		_end(state, "bloom", events)
+	elif state.living_count(FighterState.SIDE_MONSTERS) == 0:
 		_end(state, "victory", events)
-		return true
-	if state.living_count(FighterState.SIDE_KEEPERS) == 0:
+	elif state.living_count(FighterState.SIDE_KEEPERS) == 0:
 		_end(state, "defeat", events)
-		return true
-	return false
+	else:
+		return false
+	return true
 
 
 static func _end(state: FightState, outcome: String, events: Array[Dictionary]) -> void:
 	state.status = FightState.STATUS_ENDED
 	state.outcome = outcome
 	events.append(Events.fight_ended(outcome))
+
+
+## Upkeep (R3.6), in order: Land effects on occupants, due status expiries, due refills, the Land
+## phase. The checks between the sub-steps stop it early if the fight ends.
+static func _upkeep(state: FightState, events: Array[Dictionary]) -> void:
+	_land_effects(state, events)
+	Defeat.apply_fallen(state, events)
+	if check_outcome(state, events):
+		return
+	Statuses.expire_due(state, events)
+	_refill(state, events)
+	_land_phase(state, events)
+
+
+## R3.6 Blighted ground deals `blight_damage` (fixed; Blightborn ignore it) and Thriving ground
+## heals `thrive_heal`, to everyone standing on it, in roster order.
+static func _land_effects(state: FightState, events: Array[Dictionary]) -> void:
+	for fighter: FighterState in state.fighters:
+		if not fighter.on_board():
+			continue
+		var cell_karma: int = state.karma[fighter.cell]
+		if cell_karma == Land.BLIGHTED and not fighter.has_trait("blightborn"):
+			Damage.apply(state, fighter, int(state.rules["blight_damage"]), "blight", events)
+		elif cell_karma == Land.THRIVING and fighter.hp < fighter.max_hp:
+			Damage.heal(fighter, int(state.rules["thrive_heal"]), "thrive", events)
+
+
+## R11.4 The Land phase, every `land_phase_every_steps` steps: `land_phase`, then one
+## `karma_changed` per changed cell in cell order.
+static func _land_phase(state: FightState, events: Array[Dictionary]) -> void:
+	if state.step % int(state.rules["land_phase_every_steps"]) != 0:
+		return
+	var next: PackedInt32Array = Land.next_karma(state.grid, state.karma, int(state.rules["land_sum_threshold"]))
+	events.append(Events.land_phase(Land.board_karma(next)))
+	for index: int in state.grid.size():
+		if next[index] != state.karma[index]:
+			events.append(Events.karma_changed(state.grid.cell_at(index), state.karma[index], next[index]))
+	state.karma = next
 
 
 ## R3.5 A fighter's pools refill to their max every `recharge_steps` steps, counted from fight

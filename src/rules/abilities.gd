@@ -166,7 +166,7 @@ static func run_phase(state: FightState, plans: Array, phase: String, events: Ar
 		if prepared.is_empty():
 			continue
 		_apply_ops(state, prepared, events)
-		_defeat_the_fallen(state, events)
+		Defeat.apply_fallen(state, events)
 		_apply_footprint(state, prepared, events)
 
 
@@ -231,13 +231,6 @@ static func _apply_ops(state: FightState, prepared: Dictionary, events: Array[Di
 				Statuses.apply(state, victim, str(op["status"]), int(op["magnitude"]), int(op["duration"]), int(op["source"]), events)
 
 
-## R7.4, R11.3 Everyone at 0 HP is defeated now, in roster order.
-static func _defeat_the_fallen(state: FightState, events: Array[Dictionary]) -> void:
-	for fighter: FighterState in state.fighters:
-		if fighter.alive and fighter.on_board() and fighter.hp <= 0:
-			Defeat.apply(state, fighter, events)
-
-
 ## R11.2 Adds the footprint to every cell of the Area, clamped to the karma range.
 static func _apply_footprint(state: FightState, prepared: Dictionary, events: Array[Dictionary]) -> void:
 	var karma: int = int(prepared["karma"])
@@ -262,7 +255,7 @@ static func _run_strike(state: FightState, entries: Array[Dictionary], events: A
 			prepared.append(one)
 	for one: Dictionary in prepared:
 		_apply_ops(state, one, events)
-	_defeat_the_fallen(state, events)
+	Defeat.apply_fallen(state, events)
 	for one: Dictionary in prepared:
 		_apply_footprint(state, one, events)
 

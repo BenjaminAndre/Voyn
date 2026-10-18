@@ -103,6 +103,12 @@ static func karma_changed(at: Vector2i, from: int, to: int) -> Dictionary:
 	return {"type": "karma_changed", "cell": cell(at), "from": from, "to": to}
 
 
+## The Land phase ran; one `karma_changed` per changed cell follows, in cell order.
+## `board_karma` is the sum after it.
+static func land_phase(board_karma: int) -> Dictionary:
+	return {"type": "land_phase", "board_karma": board_karma}
+
+
 static func refilled(fighter: int, ap: int, mp: int) -> Dictionary:
 	return {"type": "refilled", "fighter": fighter, "ap": ap, "mp": mp}
 

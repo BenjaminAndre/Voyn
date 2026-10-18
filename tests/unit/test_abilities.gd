@@ -26,7 +26,8 @@ func _setup(creatures: Array, monsters: Array, arena: Dictionary = {}) -> FightS
 		var spawn: Array = overrides["cell"]
 		overrides.erase("cell")
 		roster.append(TestFixtures.monster(spawn, overrides))
-	return TestFixtures.running(roster, cells, arena)
+	# The Land phase is pushed out of the way here; the Land tests (test_land_fights.gd) turn it on.
+	return TestFixtures.running(roster, cells, arena, 1, {"land_phase_every_steps": 1000})
 
 
 func _use(fighter: int, ability: String, target: Vector2i, extra: Dictionary = {}) -> Dictionary:
@@ -564,8 +565,8 @@ func test_threat_zone_is_every_cell_it_could_reach_and_hit() -> void:
 
 func test_threat_zone_ignores_friendly_expensive_and_cooling_abilities() -> void:
 	var state: FightState = _setup(
-		[{"cell": _v(-4, 4)}], [{"cell": [0, 0], "abilities": ["guard", "seed"]}, {"cell": [4, -4], "abilities": []}])
-	assert_eq(RulesEngine.threat_zone(state, 1).size(), 0, "nothing hostile")
+		[{"cell": _v(0, 0), "abilities": ["guard", "seed"]}], [{"cell": [4, -4]}, {"cell": [-4, 4]}])
+	assert_eq(RulesEngine.threat_zone(state, 0).size(), 0, "nothing hostile")
 	var poor: FightState = _setup(
 		[{"cell": _v(-4, 4)}], [{"cell": [0, 0], "abilities": ["bash"]}, {"cell": [4, -4], "abilities": []}])
 	poor.fighters[1].ap = 2

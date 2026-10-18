@@ -57,7 +57,7 @@ Export presets must include `data/**/*.json`, because Godot does not export non-
   - `reachable(state, fighter)` → for each cell: MP cost, default path (GDD R4.6), blight damage along it;
   - `targets(state, fighter, ability, from_cell)` → valid target cells from a planned position;
   - `threat_zone(state, fighter)` → the cells it could reach and hit this step;
-  - `forecast(state)` → the cells the next Land phase would change, and the board karma after it.
+  - `forecast(state)` → the cells the next Land phase would change, the board karma after it, and the steps until it (`RulesEngine.forecast`);
 - **Previews** (R9) and AI (R10) call `resolve_step` on a copy, with the player's and allies' plans and empty enemy plans. State is plain data, copyable in one call. For `chance` effects, the preview resolves each branch on its own copy.
 - **Events** are the only thing the client animates: `step_started`, `phase_started` (with the phase name), `moved`, `move_blocked`, `ap_spent`, `fizzled`, `damaged`, `healed`, `shield_changed`, `displaced`, `relocated`, `collided`, `status_applied`, `status_ended`, `cell_mutated`, `karma_changed`, `chance_rolled`, `telegraph_placed`, `telegraph_resolved`, `interacted`, `refilled`, `land_phase`, `defeated` (with `cleansed`, `killed` or `downed`), `fight_ended` (with `collapse`, `bloom`, `victory` or `defeat`).
 - `damaged` and `healed` carry a `cause`: `ability`, `blight`, `thrive`, `collision`, `crush` or `telegraph`. A `land_phase` event is followed by one `karma_changed` event per changed cell, in cell order.
@@ -101,14 +101,17 @@ Every event carries `type`, `step` (0 during placement) and `phase`. The phase i
 | `status_ended` | fighter, status | expiry, a Shield used up, or the fighter or its source defeated |
 | `defeated` | fighter, how | `cleansed`, `killed` or `downed`; followed by its `karma_changed` events |
 | `karma_changed` | cell, from, to | in cell order within one cause |
+| `land_phase` | board_karma | the Land phase ran (every `land_phase_every_steps` steps, even if nothing changed); `board_karma` is the sum after it. One `karma_changed` per changed cell follows, in cell order |
 | `refilled` | fighter, ap, mp | only if a pool actually changed |
 | `fight_ended` | outcome | `collapse`, `bloom`, `victory` or `defeat` |
 
 `move_blocked` reasons: `conflict`, `swap` (two movers exchanging cells), `cycle` (longer), `occupied`, `no_mp`, `rooted`, `displaced` (a Trail move cancelled because its fighter is not on the planned cell any more), plus `not_walkable` (terrain changed since planning) and `stationary`.
 
+Upkeep order: Land effects on occupants (blight damage, thrive heal), then defeats and a checkpoint, then status expiries, refills, and the Land phase, then a checkpoint. Every checkpoint is the Land check first (Collapse, then Bloom, which cleanses every remaining Monster), then the elimination check (Victory, then Defeat). Fight creation rejects a Monster ability that is not `karma` 0 or -1 on a `single` Area (R11.2).
+
 Order inside a move sub-tick: every `move_blocked` (ascending fighter ID), then every `moved` (ascending ID), then blight `damaged` events (ascending ID), then `defeated` events with their `karma_changed`.
 
-Still to come with T8-T10b: `displaced`, `relocated`, `collided`, `cell_mutated`, `chance_rolled`, `telegraph_placed`, `telegraph_resolved`, `interacted`, `land_phase`. Each adds its row here with its task.
+Still to come with T9-T10b: `displaced`, `relocated`, `collided`, `cell_mutated`, `chance_rolled`, `telegraph_placed`, `telegraph_resolved`, `interacted`. Each adds its row here with its task.
 
 ### Content schemas (T7)
 Validated by `Defs` (`src/rules/defs.gd`): floats become ints, unknown and missing keys are errors, `_doc` is allowed and dropped. One JSON object per file under `data/abilities/`, `data/statuses/`, `data/behaviors/`.
@@ -122,7 +125,7 @@ Validated by `Defs` (`src/rules/defs.gd`): floats become ints, unknown and missi
 - **Fighter data** gains `abilities: [ability ID]`.
 
 ### Data shapes (provisional, until D2/G1 fix the content files)
-- **Arena**: `{radius, obstacles: [[q, r]], karma: [[q, r, k]], creature_start_cells: [[q, r]], collapse_at, bloom_at}`.
+- **Arena**: `{radius, obstacles: [[q, r]], karma: [[q, r, k]], creature_start_cells: [[q, r]], collapse_at, bloom_at}`. `collapse_at` must be negative and `bloom_at` positive; the fight refuses to be created without them.
 - **Roster**: Creatures first (player order then party order), then Monsters in Encounter order; each entry `{side: "creature" | "monster", player, name, max_hp, max_ap, max_mp, power, recharge_steps, traits, cell (Monsters)}`. Stats are inline until creature and Monster data files exist.
 - **State** (`FightState`): the grid and rules by shared reference; per-cell packed arrays (`karma`, `walkable`, `blocks_los`, `occupant`); fighters; `step`; `status` (`placement`, `fighting`, `ended`); `outcome`; the fight's PRNG. `clone()` copies it in one call.
 - **Plan checks**: `Plans.shape_errors` (malformed or stale plans, refused by `resolve_step` with nothing changed) and `validate_plan(state, plan, player = -1)` (plan-time rules: `not_fighting`, `not_your_fighter`, `cannot_move`, `path_too_long`, `cell_not_walkable`, plus the shape codes: `missing_fighter`, `fighter_not_active`, `bad_order`, `missing_from_cell`, `bad_from_cell`, `stale_from_cell`, `bad_move_path`, `path_outside_arena`, `path_not_contiguous`, `path_repeats_cell`, `unknown_key:<key>`, `unknown_ability`, `ability_not_known`, `missing_target_cell`, `bad_target_cell`, `keeper_plans_unavailable`; for abilities also the R6.1 codes `not_enough_ap`, `out_of_range`, `no_los`, `not_on_axis`, `bad_target`, `on_cooldown`, checked from the cell the plan puts the user on).

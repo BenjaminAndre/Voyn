@@ -139,7 +139,7 @@ func test_R3_6_a_step_runs_the_phases_in_order() -> void:
 	assert_true(result["ok"])
 	var expected: Array[String] = [
 		"step_started", "phase_started", "phase_started", "phase_started",
-		"phase_started", "phase_started", "phase_started",
+		"phase_started", "phase_started", "phase_started", "land_phase",
 	]
 	assert_eq(TestFixtures.event_types(result["events"]), expected)
 	var phases: Array[String] = []

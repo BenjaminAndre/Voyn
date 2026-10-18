@@ -74,8 +74,13 @@ static func create(arena: Dictionary, roster: Array, rules: Dictionary, seed: in
 	state.walkable.fill(1)
 	state.blocks_los.fill(0)
 	state.occupant.fill(-1)
-	state.collapse_at = int(arena.get("collapse_at", 0))
-	state.bloom_at = int(arena.get("bloom_at", 0))
+	if typeof(arena.get("collapse_at", null)) != TYPE_INT or typeof(arena.get("bloom_at", null)) != TYPE_INT:
+		errors.append("arena needs integer collapse_at and bloom_at")
+	else:
+		state.collapse_at = int(arena["collapse_at"])
+		state.bloom_at = int(arena["bloom_at"])
+		if state.collapse_at >= 0 or state.bloom_at <= 0:
+			errors.append("collapse_at must be negative and bloom_at positive")
 
 	for pair: Array in arena.get("obstacles", []):
 		var index: int = state.grid.index_of(Vector2i(int(pair[0]), int(pair[1])))
@@ -131,6 +136,10 @@ static func create(arena: Dictionary, roster: Array, rules: Dictionary, seed: in
 		for ability_id: Variant in entry.get("abilities", []):
 			if not state.abilities.has(str(ability_id)):
 				errors.append("%s: unknown ability %s" % [fighter.name, str(ability_id)])
+			else:
+				var ability: Dictionary = state.abilities[str(ability_id)]
+				if side == "monster" and not footprint_allowed_for_monster(ability):
+					errors.append("%s: ability %s breaks the Monster footprint cap (R11.2: karma 0 or -1 on a single cell)" % [fighter.name, str(ability_id)])
 			fighter.abilities.append(str(ability_id))
 		if fighter.max_hp < 1:
 			errors.append("%s: max_hp must be >= 1" % fighter.name)
@@ -161,6 +170,18 @@ static func create(arena: Dictionary, roster: Array, rules: Dictionary, seed: in
 	if not errors.is_empty():
 		return {"ok": false, "state": null, "errors": errors}
 	return {"ok": true, "state": state, "errors": errors}
+
+
+## R11.2 Monster abilities may only have karma 0 or -1 on a `single` Area. Larger Monster
+## corruption must be Telegraphed.
+static func footprint_allowed_for_monster(ability: Dictionary) -> bool:
+	var karma: int = int(ability["karma"])
+	return (karma == 0 or karma == -1) and str((ability["area"] as Dictionary)["shape"]) == "single"
+
+
+## R11.6 Board karma: the sum of every cell's karma (obstacles keep theirs).
+func board_karma() -> int:
+	return Land.board_karma(karma)
 
 
 func clone() -> FightState:

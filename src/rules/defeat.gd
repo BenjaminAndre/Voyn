@@ -9,8 +9,16 @@ extends RefCounted
 ## The elimination check and Land check belong to the scheduler.
 
 
+## R7.4, R11.3 Everyone at 0 HP is defeated now, in roster order.
+static func apply_fallen(state: FightState, events: Array[Dictionary]) -> void:
+	for fighter: FighterState in state.fighters:
+		if fighter.alive and fighter.on_board() and fighter.hp <= 0:
+			apply(state, fighter, events)
+
+
 ## Applies the defeat to `state` in place and appends events. Does nothing if already defeated.
-static func apply(state: FightState, fighter: FighterState, events: Array[Dictionary]) -> void:
+## `forced_how` ("cleansed") skips the karma check: Bloom cleanses every remaining Monster (R3.8).
+static func apply(state: FightState, fighter: FighterState, events: Array[Dictionary], forced_how: String = "") -> void:
 	if not fighter.alive:
 		return
 	var cell_index: int = fighter.cell
@@ -20,7 +28,9 @@ static func apply(state: FightState, fighter: FighterState, events: Array[Dictio
 	state.remove_from_board(fighter)
 
 	var how: String
-	if fighter.is_creature():
+	if forced_how != "":
+		how = forced_how
+	elif fighter.is_creature():
 		how = "downed"
 	elif cell_karma >= Land.PURE:
 		how = "cleansed"

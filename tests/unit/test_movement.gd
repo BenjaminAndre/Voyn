@@ -179,10 +179,11 @@ func test_R4_3_entering_a_blighted_cell_deals_fixed_damage() -> void:
 	var state: FightState = _fight([_v(0, 0)], [], {"karma": [[1, 0, -2], [2, 0, -2]]})
 	var result: Dictionary = _step(state, [TestFixtures.move(0, [[1, 0], [2, 0]])])
 	var hits: Array[Dictionary] = TestFixtures.of_type(result["events"], "damaged")
-	assert_eq(hits.size(), 2)
+	assert_eq(hits.size(), 3, "two entries, then the Upkeep on the Blighted cell it ends on")
+	assert_eq(hits[2]["phase"], "upkeep")
 	assert_eq(_core(hits[0]), {"type": "damaged", "fighter": 0, "amount": 10, "absorbed": 0, "cause": "blight", "hp": 90})
 	assert_eq(hits[1]["hp"], 80)
-	assert_eq(result["state"].fighters[0].hp, 80)
+	assert_eq(result["state"].fighters[0].hp, 70)
 
 
 func test_R4_3_blightborn_ignore_blight() -> void:
