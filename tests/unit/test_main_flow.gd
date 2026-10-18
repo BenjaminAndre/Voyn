@@ -34,7 +34,7 @@ func test_clicking_cells_builds_a_move_and_selects_creatures() -> void:
 	assert_eq(main.builder.plans().size(), 1)
 	main.select(0)
 	assert_eq(main.selected, 0)
-	main.click_cell(tank_cell + Vector2i(5, 5))
+	main.click_cell(tank_cell + Vector2i(0, -6))
 	assert_ne(main.last_message, "", "an unreachable cell says so")
 
 
@@ -201,3 +201,128 @@ func test_nothing_can_be_planned_before_selecting() -> void:
 	assert_eq(main.builder.plans().size(), 0, "a click on an empty cell with nobody selected does nothing")
 	main.choose_ability("bash")
 	assert_eq(main.builder.plans().size(), 0)
+
+
+# --- Round 2, item 2.4: never leave the UI stuck ---
+
+
+func _hint(main: Control) -> String:
+	return main._hint.text
+
+
+func test_closing_the_window_while_aiming_cancels_the_aim() -> void:
+	var main: Control = await _main()
+	main.select(0)
+	main.choose_ability("bash")
+	assert_true(main.targeting)
+	assert_string_contains(_hint(main), "yellow")
+	await main.resolve_step()
+	assert_false(main.targeting)
+	assert_eq(main.selected, -1)
+	assert_eq(main.mode, main.Mode.PLANNING)
+	assert_false(_hint(main).contains("yellow"), "no stale 'pick a yellow cell' in the next window")
+	assert_eq(main.builder.plans().size(), 0)
+
+
+func test_the_timer_closing_the_window_cancels_the_aim_too() -> void:
+	var main: Control = await _main()
+	main.untimed = false
+	main.select(0)
+	main.choose_ability("bash")
+	main.window_left = 0.05
+	main._process(0.2)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_false(main.targeting)
+	assert_false(_hint(main).contains("yellow"))
+
+
+func test_pressing_ready_while_aiming_still_resolves_the_step() -> void:
+	var main: Control = await _main()
+	main.select(0)
+	main.choose_ability("bash")
+	await main.resolve_step()
+	assert_eq(main.state.step, 2)
+
+
+func test_an_error_message_does_not_survive_the_next_action_or_window() -> void:
+	var main: Control = await _main()
+	main.select(0)
+	main.click_cell(main.state.cell_of(main.state.fighters[0]) + Vector2i(-3, -3))
+	assert_ne(main.last_message, "", "an unreachable click explains itself")
+	assert_eq(_hint(main), main.last_message)
+	main.select(1)
+	assert_eq(main.last_message, "")
+	assert_false(_hint(main).contains("reach"))
+	main.click_cell(main.state.cell_of(main.state.fighters[1]) + Vector2i(-4, -4))
+	assert_ne(main.last_message, "")
+	await main.resolve_step()
+	assert_eq(main.last_message, "", "a new window starts clean")
+	assert_false(_hint(main).contains("reach"))
+
+
+func test_the_hint_follows_the_input_state() -> void:
+	var main: Control = await _main()
+	assert_string_contains(_hint(main), "Click a creature")
+	main.select(0)
+	assert_string_contains(_hint(main), "blue cell")
+	main.choose_ability("bash")
+	assert_string_contains(_hint(main), "yellow")
+	main.clear_selected()
+	assert_string_contains(_hint(main), "blue cell")
+	main.choose_ability("guard")
+	assert_false(main.targeting, "a self ability needs no aim")
+	assert_string_contains(_hint(main), "blue cell")
+
+
+func test_ending_the_fight_clears_aiming_and_the_hint() -> void:
+	var main: Control = await _main()
+	main.select(0)
+	main.choose_ability("bash")
+	main._end_fight()
+	assert_false(main.targeting)
+	assert_eq(main.selected, -1)
+	assert_eq(_hint(main), "")
+
+
+func _assert_input_invariants(main: Control, label: String) -> void:
+	if main.targeting:
+		assert_eq(main.mode, main.Mode.PLANNING, "%s: aiming only while planning" % label)
+		assert_gte(main.selected, 0, "%s: aiming needs a selected Creature" % label)
+		var entry: Dictionary = main.builder.drafts[main.selected]
+		assert_ne(str(entry["ability"]), "", "%s: aiming needs a chosen ability" % label)
+		assert_false(bool(entry["has_target"]), "%s: aiming means no target yet" % label)
+	if main.mode != main.Mode.PLANNING:
+		assert_false(main.targeting, "%s: no aiming outside a window" % label)
+	if main.selected >= 0:
+		assert_true(main.state.fighters[main.selected].on_board(), "%s: selected is on the board" % label)
+	assert_false(main._hint.text.contains("yellow") and not main.targeting, "%s: no stale aiming hint" % label)
+
+
+func test_input_state_invariants_hold_under_random_play() -> void:
+	var main: Control = await _main()
+	var prng: Prng = Prng.create(20261018)
+	for i: int in 220:
+		var label: String = "op %d" % i
+		match prng.next_below(7):
+			0:
+				main.select(prng.next_below(3))
+			1:
+				if main.selected >= 0:
+					var kit: PackedStringArray = main.state.fighters[main.selected].abilities
+					main.choose_ability(kit[prng.next_below(kit.size())])
+			2:
+				main.click_cell(main.state.grid.cell_at(prng.next_below(main.state.grid.size())))
+			3:
+				main.set_order(prng.next_below(2) == 0)
+			4:
+				main.clear_selected()
+			5:
+				if prng.next_below(3) == 0:
+					await main.resolve_step()
+			6:
+				if main.selected >= 0 and prng.next_below(2) == 0:
+					main.click_cell(main.state.cell_of(main.state.fighters[prng.next_below(3)]))
+		_assert_input_invariants(main, label)
+		if main.mode == main.Mode.ENDED:
+			break

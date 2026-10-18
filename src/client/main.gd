@@ -31,6 +31,8 @@ var selected: int = -1
 var targeting: bool = false
 var window_left: float = 0.0
 var untimed: bool = false
+## A short-lived message (an error from the last click). Cleared by the next action and by every new
+## window; the state hint (what to do next) is derived from the input state, never stored.
 var last_message: String = ""
 
 var _step_label: Label
@@ -133,6 +135,7 @@ func _begin_window() -> void:
 	mode = Mode.PLANNING
 	builder.reset(state)
 	targeting = false
+	last_message = ""
 	_banner.text = ""
 	selected = -1  # nobody is selected: picking a Creature is what shows its move range
 	window_left = float(int(rules["step_window_ms"])) / 1000.0
@@ -148,6 +151,7 @@ func select(id: int) -> void:
 		return
 	selected = id
 	targeting = false
+	last_message = ""
 	_refresh()
 
 
@@ -155,6 +159,7 @@ func select(id: int) -> void:
 func choose_ability(ability_id: String) -> void:
 	if mode != Mode.PLANNING or selected < 0:
 		return
+	last_message = ""
 	if builder.unavailable_reason(selected, ability_id) != "":
 		return
 	if str(builder.draft(selected)["ability"]) == ability_id:
@@ -169,6 +174,7 @@ func choose_ability(ability_id: String) -> void:
 func set_order(ability_first: bool) -> void:
 	if mode != Mode.PLANNING or selected < 0:
 		return
+	last_message = ""
 	builder.set_order(selected, Plans.ORDER_ABILITY_FIRST if ability_first else Plans.ORDER_MOVE_FIRST)
 	targeting = str(builder.draft(selected)["ability"]) != "" and not bool(builder.draft(selected)["has_target"])
 	_refresh()
@@ -179,6 +185,7 @@ func clear_selected() -> void:
 		return
 	builder.clear(selected)
 	targeting = false
+	last_message = ""
 	_refresh()
 
 
@@ -227,6 +234,10 @@ func resolve_step() -> void:
 	if mode != Mode.PLANNING:
 		return
 	mode = Mode.RESOLVING
+	targeting = false  # closing the window cancels any aiming in progress
+	selected = -1
+	last_message = ""
+	_refresh_hint()
 	board.clear_overlays()
 	board.set_previews({})
 	_ready_button.disabled = true
@@ -250,9 +261,11 @@ func resolve_step() -> void:
 ## The result screen (R3.8): the outcome, Monsters Cleansed out of the total, the final board karma.
 func _end_fight() -> void:
 	mode = Mode.ENDED
+	targeting = false
+	selected = -1
+	last_message = ""
 	_banner.text = ""
 	_refresh()
-	_set_hint("")
 	_end_title.text = _outcome_title(state.outcome)
 	_end_details.text = result_details()
 	_end_panel.show()
@@ -293,11 +306,49 @@ func restart() -> void:
 
 
 func _refresh() -> void:
+	_normalize_input_state()
 	_step_label.text = "Step %d" % state.step
 	_update_party()
 	_update_actions()
 	_update_overlays()
 	_update_preview()
+	_refresh_hint()
+
+
+## No input state survives into a mode where it cannot be finished: aiming exists only while a
+## Creature is selected, has chosen an ability, and has not yet aimed it, during a planning window.
+func _normalize_input_state() -> void:
+	if mode != Mode.PLANNING:
+		targeting = false
+		return
+	if selected >= 0 and not state.fighters[selected].on_board():
+		selected = -1
+	if selected < 0 or not builder.drafts.has(selected):
+		targeting = false
+		return
+	var entry: Dictionary = builder.drafts[selected]
+	targeting = targeting and str(entry["ability"]) != "" and not bool(entry["has_target"])
+
+
+## The line at the bottom: a stored message if there is one, else what to do next in this state.
+func _refresh_hint() -> void:
+	if _hint == null:
+		return
+	if last_message != "":
+		_hint.text = last_message
+		return
+	match mode:
+		Mode.PLANNING:
+			if targeting:
+				_hint.text = "Pick a yellow cell to aim at. Esc cancels the plan."
+			elif selected < 0:
+				_hint.text = "Click a creature to see where it can go. Space = Ready."
+			else:
+				_hint.text = "Click a blue cell to move, or pick an ability. Space = Ready."
+		Mode.RESOLVING:
+			_hint.text = "Resolving the step..."
+		Mode.ENDED:
+			_hint.text = ""
 
 
 func _update_party() -> void:
@@ -360,10 +411,6 @@ func _update_actions() -> void:
 	clear.text = "Clear plan (Esc)"
 	clear.pressed.connect(clear_selected)
 	_actions_box.add_child(clear)
-	if targeting:
-		_set_hint("Pick a yellow cell to aim at.")
-	elif last_message == "":
-		_set_hint("Click a creature, then a blue cell to move, or an ability then a target. Space = Ready.")
 
 
 func _ability_tip(ability: Dictionary) -> String:
@@ -530,8 +577,7 @@ func _build_ui() -> void:
 
 func _set_hint(text: String) -> void:
 	last_message = text
-	if _hint != null:
-		_hint.text = text
+	_refresh_hint()
 
 
 func _build_info() -> String:
