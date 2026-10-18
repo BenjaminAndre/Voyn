@@ -272,3 +272,53 @@ func test_clear_removes_a_draft() -> void:
 	builder.set_path_to(0, _v(1, 0))
 	builder.clear_all()
 	assert_eq(builder.plans().size(), 0)
+
+
+# --- Round 2, item 2.8: rebase onto the next window's board ---
+
+
+func test_rebase_keeps_valid_drafts_and_points_at_the_new_state() -> void:
+	var state: FightState = _setup()
+	var builder: PlanBuilder = _builder(state)
+	builder.set_path_to(0, _v(1, 0))
+	var next: FightState = state.clone()
+	builder.rebase(next)
+	assert_same(builder.state, next)
+	assert_eq(builder.plans().size(), 1)
+
+
+func test_rebase_drops_a_plan_that_no_longer_validates() -> void:
+	var state: FightState = _setup()
+	var builder: PlanBuilder = _builder(state)
+	builder.set_path_to(0, _v(1, 0))
+	var next: FightState = state.clone()
+	next.fighters[0].statuses.append(TestFixtures.status("rooted"))
+	builder.rebase(next)
+	assert_eq(builder.plans().size(), 0)
+	assert_false(builder.drafts.has(0))
+
+
+func test_rebase_drops_drafts_of_creatures_that_left_the_board_and_unfinished_aims() -> void:
+	var state: FightState = _setup()
+	var builder: PlanBuilder = _builder(state)
+	builder.set_path_to(0, _v(1, 0))
+	var next: FightState = state.clone()
+	var scratch: Array[Dictionary] = []
+	Defeat.apply(next, next.fighters[0], scratch)
+	builder.rebase(next)
+	assert_false(builder.drafts.has(0))
+	var again: PlanBuilder = _builder(state)
+	again.set_ability(0, "bash")
+	again.rebase(state.clone())
+	assert_false(again.drafts.has(0), "an unaimed ability is cancelled, leaving an empty draft that is dropped")
+
+
+func test_rebase_drops_an_ability_target_that_is_no_longer_valid() -> void:
+	var state: FightState = _setup([1, 0])
+	var builder: PlanBuilder = _builder(state)
+	builder.set_ability(0, "bash")
+	builder.set_target(0, _v(1, 0))
+	var next: FightState = state.clone()
+	next.set_position(next.fighters[1], next.grid.index_of(_v(3, 0)))
+	builder.rebase(next)
+	assert_eq(builder.plans().size(), 0, "the Monster is no longer there to hit")

@@ -24,6 +24,26 @@ func reset(new_state: FightState) -> void:
 	drafts = {}
 
 
+## Moves the drafts onto a new board (the next window's), keeping them as a safety net: a draft
+## whose Creature is gone, or whose plan no longer validates, is dropped, and an aim that was never
+## finished is cancelled. Plans made during the previous resolution carry over through this (R3.3).
+func rebase(new_state: FightState) -> void:
+	state = new_state
+	var ids: Array[int] = []
+	for id: int in drafts.keys():
+		ids.append(id)
+	for id: int in ids:
+		if not state.fighters[id].on_board():
+			drafts.erase(id)
+			continue
+		cancel_pending_ability(id)
+		var plan: Dictionary = plan_for(id)
+		if plan.is_empty():
+			drafts.erase(id)
+		elif not bool(RulesEngine.validate_plan(state, plan)["ok"]):
+			drafts.erase(id)
+
+
 func draft(id: int) -> Dictionary:
 	if not drafts.has(id):
 		drafts[id] = {

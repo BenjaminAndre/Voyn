@@ -82,15 +82,23 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if mode != Mode.PLANNING:
+	if not _can_plan():
 		return
 	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_SPACE or event.keycode == KEY_ENTER:
+		if (event.keycode == KEY_SPACE or event.keycode == KEY_ENTER) and mode == Mode.PLANNING:
 			resolve_step()
 		elif event.keycode == KEY_ESCAPE:
 			cancel_or_clear()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		cancel_or_clear()
+
+
+## R3.3 Plan at any time: you can plan during a window, and while a step's resolution plays (against
+## the board as it will stand when the next window opens), but not once the fight has ended.
+func _can_plan() -> bool:
+	if state == null:
+		return false
+	return mode == Mode.PLANNING or (mode == Mode.RESOLVING and state.status != FightState.STATUS_ENDED)
 
 
 # --- Starting a fight ---
@@ -124,6 +132,7 @@ func _start_fight(seed: int) -> void:
 			next_start += 1
 			fresh = RulesEngine.place(fresh, fighter.id, Vector2i(int(pair[0]), int(pair[1])))["state"]
 	state = RulesEngine.start_fight(fresh)["state"]
+	builder.reset(state)
 	_build_views()
 	_begin_window()
 
@@ -147,7 +156,7 @@ func _build_views() -> void:
 
 func _begin_window() -> void:
 	mode = Mode.PLANNING
-	builder.reset(state)
+	builder.rebase(state)  # plans made while the last step played carry over, re-checked on the new board
 	moving = false
 	targeting = false
 	last_message = ""
@@ -162,7 +171,7 @@ func _begin_window() -> void:
 
 ## Selects a Creature. Its move zone shows at once, so you can see where it can go.
 func select(id: int) -> void:
-	if mode != Mode.PLANNING or not state.fighters[id].on_board() or not state.fighters[id].is_creature():
+	if not _can_plan() or not state.fighters[id].on_board() or not state.fighters[id].is_creature():
 		return
 	if selected >= 0 and selected != id:
 		builder.cancel_pending_ability(selected)
@@ -176,7 +185,7 @@ func select(id: int) -> void:
 ## Picks Move for the selected Creature, like picking an ability: its zone shows, then a cell is
 ## clicked. Picking it again while aiming cancels the aim; the Move already set stays.
 func choose_move() -> void:
-	if mode != Mode.PLANNING or selected < 0:
+	if not _can_plan() or selected < 0:
 		return
 	last_message = ""
 	var reason: String = builder.move_unavailable_reason(selected)
@@ -193,7 +202,7 @@ func choose_move() -> void:
 ## Picks an ability for the selected Creature; a `self` ability is complete at once. Picking one
 ## again replaces it (a `self` ability that is already set is dropped instead).
 func choose_ability(ability_id: String) -> void:
-	if mode != Mode.PLANNING or selected < 0:
+	if not _can_plan() or selected < 0:
 		return
 	last_message = ""
 	if builder.unavailable_reason(selected, ability_id) != "":
@@ -216,7 +225,7 @@ func choose_ability(ability_id: String) -> void:
 ## Esc or right-click: cancels the aim in progress; else clears the selected Creature's plan; else
 ## deselects.
 func cancel_or_clear() -> void:
-	if mode != Mode.PLANNING:
+	if not _can_plan():
 		return
 	last_message = ""
 	if moving or targeting:
@@ -233,7 +242,7 @@ func cancel_or_clear() -> void:
 
 ## Clears the selected Creature's whole plan (the button).
 func clear_selected() -> void:
-	if mode != Mode.PLANNING or selected < 0:
+	if not _can_plan() or selected < 0:
 		return
 	builder.clear(selected)
 	moving = false
@@ -245,7 +254,7 @@ func clear_selected() -> void:
 ## A click on the board while planning: pick a Creature, or fill the slot being aimed (Move or
 ## ability) with the clicked cell.
 func click_cell(cell: Vector2i) -> void:
-	if mode != Mode.PLANNING or not state.grid.has_cell(cell):
+	if not _can_plan() or not state.grid.has_cell(cell):
 		return
 	var occupant: FighterState = state.fighter_at(state.grid.index_of(cell))
 	if moving and selected >= 0:
@@ -303,7 +312,7 @@ func _on_cell_clicked(cell: Vector2i) -> void:
 func _on_cell_hovered(cell: Vector2i) -> void:
 	board.clear_overlay("area")
 	board.clear_overlay("hover_path")
-	if mode != Mode.PLANNING or selected < 0:
+	if not _can_plan() or selected < 0:
 		return
 	var index: int = state.grid.index_of(cell)
 	if targeting and builder.target_cells(selected).has(index):
@@ -324,25 +333,26 @@ func _on_cell_hovered(cell: Vector2i) -> void:
 func resolve_step() -> void:
 	if mode != Mode.PLANNING:
 		return
-	mode = Mode.RESOLVING
-	targeting = false  # closing the window cancels any aiming in progress
-	selected = -1
-	last_message = ""
-	_refresh_hint()
-	board.clear_overlays()
-	board.set_ghosts({})
-	board.set_previews({})
-	_ready_button.disabled = true
 	var plans: Array = builder.plans()
 	plans.append_array(ScriptedChase.plans(state, content["behaviors"]))
 	var result: Dictionary = RulesEngine.resolve_step(state, plans)
 	if not result["ok"]:
 		_set_hint("The step could not be resolved: %s" % str(result["errors"]))
-		mode = Mode.PLANNING
 		_refresh()
 		return
-	await board.play_events(result["events"], result["state"])
+	mode = Mode.RESOLVING
+	moving = false
+	targeting = false  # closing the window cancels any aiming in progress
+	selected = -1
+	last_message = ""
+	_ready_button.disabled = true
+	# From here the player can already plan the next step (R3.3), against the board as it will stand
+	# when the next window opens: the step's final state. The plans just resolved are spent.
 	state = result["state"]
+	board.state = state
+	builder.reset(state)
+	_refresh()
+	await board.play_events(result["events"], state)
 	_banner.text = ""
 	if state.status == FightState.STATUS_ENDED:
 		_end_fight()
@@ -412,7 +422,7 @@ func _refresh() -> void:
 ## No input state survives into a mode where it cannot be finished: aiming exists only while a
 ## Creature is selected, has chosen an ability, and has not yet aimed it, during a planning window.
 func _normalize_input_state() -> void:
-	if mode != Mode.PLANNING:
+	if not _can_plan():
 		moving = false
 		targeting = false
 		return
@@ -451,7 +461,14 @@ func _refresh_hint() -> void:
 			else:
 				_hint.text = "Pick Move or an ability. Esc clears this creature's plan. Space = Ready."
 		Mode.RESOLVING:
-			_hint.text = "Resolving the step..."
+			if moving:
+				_hint.text = "Click a cell in the zone to move there. Esc cancels."
+			elif targeting:
+				_hint.text = "Pick a cell to aim at. Esc cancels."
+			elif selected < 0:
+				_hint.text = "The step is resolving. You can already plan the next one: click a creature."
+			else:
+				_hint.text = "Pick Move or an ability for the next step. Esc clears this creature's plan."
 		Mode.ENDED:
 			_hint.text = ""
 
@@ -468,7 +485,7 @@ func _update_party() -> void:
 		card.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		card.custom_minimum_size = Vector2(250, 62)
 		card.text = _card_text(fighter)
-		card.disabled = not fighter.on_board() or mode != Mode.PLANNING
+		card.disabled = not fighter.on_board() or not _can_plan()
 		card.set_pressed_no_signal(fighter.id == selected)
 		var id: int = fighter.id
 		card.pressed.connect(func() -> void: select(id))
@@ -483,14 +500,14 @@ func _card_text(fighter: FighterState) -> String:
 	var shield: int = Statuses.shield_amount(fighter)
 	var line1: String = "%s   HP %d/%d%s" % [fighter.name, fighter.hp, fighter.max_hp, "  +%d" % shield if shield > 0 else ""]
 	var line2: String = "AP %d/%d  MP %d/%d  (%s)" % [fighter.ap, fighter.max_ap, fighter.mp, fighter.max_mp, refill_text]
-	var line3: String = "Plan: %s" % builder.summary(fighter.id) if mode == Mode.PLANNING else ""
+	var line3: String = "Plan: %s" % builder.summary(fighter.id) if _can_plan() else ""
 	return "%s\n%s\n%s" % [line1, line2, line3]
 
 
 func _update_actions() -> void:
 	for child: Node in _actions_box.get_children():
 		child.queue_free()
-	if mode != Mode.PLANNING or selected < 0:
+	if not _can_plan() or selected < 0:
 		return
 	var fighter: FighterState = state.fighters[selected]
 	var title: Label = Label.new()
@@ -548,7 +565,7 @@ func _ability_tip(ability: Dictionary) -> String:
 func _update_overlays() -> void:
 	board.clear_overlays()
 	board.set_ghosts({})
-	if mode != Mode.PLANNING:
+	if not _can_plan():
 		return
 	# Light to dark, so each shade is drawn over the lighter ones: 1 the zone being aimed.
 	if selected >= 0:
@@ -603,7 +620,7 @@ func _update_preview() -> void:
 	board.set_forecast(forecast["changed"], forecast["next"])
 	var after: int = int(forecast["board_karma_after"])
 	var texts: Dictionary = {}
-	if mode == Mode.PLANNING:
+	if _can_plan():
 		var result: Dictionary = builder.preview()
 		if not result.is_empty() and result["ok"]:
 			after = (result["state"] as FightState).board_karma()
