@@ -27,9 +27,9 @@ Who: **dev** = Sonnet session or `dev` agent · **grunt** = `grunt` agent (Haiku
   - write the workflow described in `docs/architecture.md` (tests, then export, then publish).
 
   *Done when:* a push to `debug` shows the new commit hash on itch.io.
-- [ ] **T2 Data loader** (dev, needs T1). `src/rules/` loader for `data/combat/rules.json`. It converts JSON numbers to int, rejects non-integers, missing keys and unknown keys, and asserts `telegraph_min_delay ≥ 1`.
+- [x] **T2 Data loader** (dev, needs T1). `src/rules/` loader for `data/combat/rules.json`. It converts JSON numbers to int, rejects non-integers, missing keys and unknown keys, and asserts `telegraph_min_delay ≥ 1`.
   *Done when:* tests cover a valid file and each rejection.
-- [ ] **T2b Seeded PRNG** (dev, needs T1). Hand-written integer generator in `src/rules/` (`docs/architecture.md`). A test pins the first 1,000 outputs for a fixed seed; that list becomes part of the port contract.
+- [x] **T2b Seeded PRNG** (dev, needs T1). Hand-written integer generator in `src/rules/` (`docs/architecture.md`). A test pins the first 1,000 outputs for a fixed seed; that list becomes part of the port contract.
 
 ## M1 — Complete headless rules engine
 Tests use fixture creatures, abilities, Monsters and Arenas in `tests/fixtures/`, not real content, so M1 does not wait on `02`/`03`.
