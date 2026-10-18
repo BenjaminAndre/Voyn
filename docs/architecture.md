@@ -145,18 +145,20 @@ floor_div(n, m) = n / m if n >= 0 else -((-n + m - 1) / m)   # m > 0, '/' on non
 - **AI golden tests**: state → the actions the behavior chooses.
 - **Bot fights** (M2b+): headless runs of greedy Creatures vs an Encounter over many fights, with a harness-only round cap. They report the outcome mix and fight length (vision target: 5–10 minutes). Balance changes are checked against them. If greedy is too slow in GDScript, measure first, then prune candidates.
 
-## Release pipeline: `debug` → itch.io
-Adapted from Jolar's `.github/workflows/indev.yml`.
-- **Trigger**: push to the `debug` branch, plus manual `workflow_dispatch`.
-- **Steps**:
+## Release pipeline: GitHub Pages, then itch.io
+One workflow, `.github/workflows/build.yml`, adapted from the developer's double-cooked repo.
+- **Trigger**: every push, plus manual `workflow_dispatch`. A newer push to the same ref cancels the older run.
+- **Build job** (every branch), in order:
   1. checkout;
-  2. run the headless tests (a failure means no release);
-  3. write `build_info.txt` (short commit hash + UTC build date);
-  4. Godot web export with the same pinned Godot version as the project;
-  5. publish to the itch.io channel `html5-debug` with butler.
-- **Build info on screen**: the game shows `build_info.txt` in a corner on every screen, like Jolar's `build_info_display.gd`. The web export preset's include filter must list `build_info.txt` and `data/**/*.json`.
-- **Secrets stay in GitHub**, set by the developer: `BUTLER_API_KEY` (secret), `ITCH_USERNAME` and `ITCH_GAME_ID` (variables). No AI session reads, writes or asks for the key.
-- Jolar used `firebelley/godot-export` and `KikimoraGames/itch-publish`; check their current versions when setting this up.
+  2. restore or download the pinned Godot editor and web export templates (cached per version; the version is `GODOT_VERSION` in the workflow, the same as `CLAUDE.md`);
+  3. write `build_info.txt` (short commit hash + UTC date);
+  4. `--headless --import`, then the headless GUT tests (**a failing test means no deploy**);
+  5. Godot web export with the `Web` preset to `build/web/`;
+  6. upload `build/web` as a build artifact.
+- **Pages** (`main` only): the build job uploads the Pages artifact and a `deploy-pages` job publishes it. The web preset has threads off, so no special headers are needed. One-time setup by the developer: repo Settings, Pages, Source: GitHub Actions.
+- **itch.io** (`debug` branch only, not live yet): a last step of the build job pushes `build/web` to the itch.io channel `html5-debug` with butler. It skips itself until the developer has created the itch.io page and set `BUTLER_API_KEY` (secret), `ITCH_USERNAME` and `ITCH_GAME_ID` (variables) in GitHub. No AI session reads, writes or asks for the key.
+- **Build info on screen**: `src/client/main.gd` shows the project version and `build_info.txt` in a corner. The preset's include filter lists `build_info.txt` and `data/**/*.json`, because Godot does not export non-resource files by default; it excludes `docs/`, `tests/`, `addons/gut/` and `.claude/`.
+- **Web caveats**: run `test_prng` and the golden-replay tests in a web build once they exist (64-bit wraparound in the PRNG is verified on desktop only). Action versions in the workflow are copied from double-cooked; check them when they warn of deprecation.
 
 ## Online path (post-MVP, not committed)
 The client sends an action, the Go backend authenticates and routes it, and a Godot headless worker runs `apply` and the Monster AI. The resulting events go back to every client in the fight. Clients keep the engine for queries and previews only; server events are authoritative. If Godot workers ever cost too much, port `src/rules/` and `src/ai/`, verified by the golden replays and AI golden tests.

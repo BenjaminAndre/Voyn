@@ -21,12 +21,9 @@ Who: **dev** = Sonnet session or `dev` agent · **grunt** = `grunt` agent (Haiku
 ## M0 — Setup (design-independent, can run any time)
 - [x] **T1 Project setup** (dev). `git init` with a Godot `.gitignore`; commit the existing docs first. Ask the user to install the latest Godot 4 stable; don't download it yourself. Create `project.godot` at repo root (Compatibility renderer). Add `.gdignore` to `docs/`. Install GUT and add one smoke test. Write the exact Godot version and the commands (open editor, run game, run tests headless) into `CLAUDE.md`.
   *Done when:* the documented headless test command passes from a fresh clone.
-- [ ] **T1b `debug` → itch.io pipeline** (dev, needs T1). First, **you**: create the GitHub repo and the itch.io page, and set `BUTLER_API_KEY` (secret), `ITCH_USERNAME` and `ITCH_GAME_ID` (variables) in GitHub. Then dev:
-  - add a minimal main scene that shows `build_info.txt` in a corner;
-  - add a web export preset whose include filter lists `build_info.txt` and `data/**/*.json`;
-  - write the workflow described in `docs/architecture.md` (tests, then export, then publish).
-
-  *Done when:* a push to `debug` shows the new commit hash on itch.io.
+- [x] **T1b Web build and GitHub Pages pipeline** (dev, needs T1). A placeholder main scene showing the version and `build_info.txt`, the `Web` export preset, `.gitattributes` and `.editorconfig`, and `.github/workflows/build.yml` (tests, then web export, then Pages on `main`).
+  *Done when:* a push to `main` shows the new build on GitHub Pages. **Waiting on you**: Settings, Pages, Source: GitHub Actions, then check the first run (not run yet: it only ran locally up to the export, since the 4.7.2 export templates are not installed here).
+- [ ] **T1c itch.io deploy** (you, then dev). The workflow already has the `debug` branch step. **You**: create the itch.io page and set `BUTLER_API_KEY` (secret), `ITCH_USERNAME` and `ITCH_GAME_ID` (variables) in GitHub. Then dev: create the `debug` branch and confirm a push shows the new commit hash on itch.io.
 - [x] **T2 Data loader** (dev, needs T1). `src/rules/` loader for `data/combat/rules.json`. It converts JSON numbers to int, rejects non-integers, missing keys and unknown keys, and asserts `telegraph_min_delay ≥ 1`.
   *Done when:* tests cover a valid file and each rejection.
 - [x] **T2b Seeded PRNG** (dev, needs T1). Hand-written integer generator in `src/rules/` (`docs/architecture.md`). A test pins the first 1,000 outputs for a fixed seed; that list becomes part of the port contract.

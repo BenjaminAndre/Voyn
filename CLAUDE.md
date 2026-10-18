@@ -60,7 +60,9 @@ G="/c/Users/LocalAdmin/Desktop/Godot_v4.7.2-stable_win64_console.exe"
 "$G" --headless --path . --import                        # once after a fresh clone, builds .godot/
 "$G" --headless --path . -s addons/gut/gut_cmdln.gd -gexit   # run all tests (config: .gutconfig.json)
 "$G" --path . -e                                         # open the editor
-"$G" --path .                                            # run the game (no main scene yet)
+"$G" --path .                                            # run the game (placeholder main scene)
 ```
+
+Web export: the `Web` preset in `export_presets.cfg` needs the 4.7.2 export templates, which are not installed here; CI does the export (`.github/workflows/build.yml`, GitHub Pages from `main`, itch.io from `debug` later).
 
 Golden replays: added with task T11.

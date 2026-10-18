@@ -1,0 +1,108 @@
+name: Build Web
+
+# Every push builds and tests. Only `main` is published to GitHub Pages; only `debug` is pushed to
+# itch.io, and only once the itch.io page and its secrets exist (that step skips itself until then).
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: build-web-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # itch.io settings, set once in GitHub by the developer (no AI session reads or asks for the key):
+    # secret BUTLER_API_KEY, variables ITCH_USERNAME and ITCH_GAME_ID.
+    env:
+      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+      ITCH_USERNAME: ${{ vars.ITCH_USERNAME }}
+      ITCH_GAME_ID: ${{ vars.ITCH_GAME_ID }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # Editor + export templates are ~1 GB, so they are cached per Godot version.
+      - id: cache-godot
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          mkdir -p ~/godot
+          curl -fsSL "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o godot.zip
+          unzip -q godot.zip -d ~/godot
+          curl -fsSL "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o templates.tpz
+          unzip -q templates.tpz
+          mkdir -p ~/.local/share/godot/export_templates
+          mv templates ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          rm godot.zip templates.tpz
+
+      - run: echo "GODOT=$HOME/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" >> "$GITHUB_ENV"
+
+      - id: version
+        run: echo "version=$(sed -n 's/^config\/version="\(.*\)"$/\1/p' project.godot)" >> "$GITHUB_OUTPUT"
+
+      # Shown in a corner of every screen (src/client/main.gd) and listed in the export include filter.
+      - run: echo "$(git rev-parse --short HEAD) $(date -u +%Y-%m-%d)" > build_info.txt
+
+      # A fresh checkout has no .godot/ import cache; tests and export need it.
+      - run: $GODOT --headless --import
+
+      # Tests gate the build, and so every deploy.
+      - run: $GODOT --headless -s addons/gut/gut_cmdln.gd -gexit
+
+      - run: |
+          mkdir -p build/web
+          $GODOT --headless --export-release "Web" build/web/index.html
+          test -f build/web/index.html
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: voyn-web-v${{ steps.version.outputs.version }}-${{ github.sha }}
+          path: build/web
+
+      - if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: build/web
+
+      # itch.io channel `html5-debug`, from the `debug` branch. Skipped until BUTLER_API_KEY,
+      # ITCH_USERNAME and ITCH_GAME_ID are all set.
+      - if: github.ref == 'refs/heads/debug'
+        run: |
+          if [ -z "$BUTLER_API_KEY" ] || [ -z "$ITCH_USERNAME" ] || [ -z "$ITCH_GAME_ID" ]; then
+            echo "itch.io is not configured yet: skipping the push."
+            exit 0
+          fi
+          curl -fsSL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip -q butler.zip -d butler
+          chmod +x butler/butler
+          ./butler/butler push build/web "$ITCH_USERNAME/$ITCH_GAME_ID:html5-debug" --userversion "${GITHUB_SHA::7}"
+
+  # Only main is published to Pages: other branches still build but don't replace the live game.
+  # No special headers needed, because the Web preset has thread support off.
+  deploy-pages:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
