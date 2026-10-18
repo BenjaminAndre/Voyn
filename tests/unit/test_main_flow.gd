@@ -17,7 +17,8 @@ func test_the_game_starts_in_a_planning_window_on_step_one() -> void:
 	assert_eq(main.mode, main.Mode.PLANNING)
 	assert_eq(main.state.step, 1)
 	assert_eq(main.state.status, FightState.STATUS_FIGHTING)
-	assert_eq(main.selected, 0, "the first Creature is selected")
+	assert_eq(main.selected, -1, "no Creature is selected at the start of a window")
+	assert_false(main.board._layers.has("reach"), "so no move range is shown yet")
 	assert_eq(main.state.fighters.size(), 7)
 	assert_eq(main.window_left, 8.0, "step_window_ms")
 
@@ -39,6 +40,7 @@ func test_clicking_cells_builds_a_move_and_selects_creatures() -> void:
 
 func test_choosing_an_ability_then_a_target_makes_a_plan() -> void:
 	var main: Control = await _main()
+	main.select(0)
 	main.choose_ability("guard")
 	assert_false(main.targeting, "a self ability is complete at once")
 	assert_eq(main.builder.plan_for(0)["ability"], "guard")
@@ -52,6 +54,7 @@ func test_choosing_an_ability_then_a_target_makes_a_plan() -> void:
 
 func test_an_ability_that_cannot_be_afforded_is_not_chosen() -> void:
 	var main: Control = await _main()
+	main.select(0)
 	main.state.fighters[0].ap = 1
 	main.choose_ability("guard")
 	assert_eq(str(main.builder.draft(0)["ability"]), "")
@@ -59,6 +62,7 @@ func test_an_ability_that_cannot_be_afforded_is_not_chosen() -> void:
 
 func test_ready_resolves_the_step_and_opens_the_next_window() -> void:
 	var main: Control = await _main()
+	main.select(0)
 	main.choose_ability("guard")
 	await main.resolve_step()
 	assert_eq(main.mode, main.Mode.PLANNING)
@@ -169,3 +173,31 @@ func test_restart_starts_a_fresh_fight() -> void:
 func test_the_result_screen_is_hidden_while_playing() -> void:
 	var main: Control = await _main()
 	assert_false(main._end_panel.visible)
+
+
+# --- Round 2, item 2.2: selection gives feedback ---
+
+
+func test_selecting_a_creature_shows_its_move_range() -> void:
+	var main: Control = await _main()
+	assert_eq(main.selected, -1)
+	main.select(1)
+	assert_eq(main.selected, 1)
+	assert_true(main.board._layers.has("reach"), "the blue cells appear when a Creature is selected")
+	assert_eq((main.board._layers["reach"] as Node3D).get_child_count(), main.builder.reachable_cells(1).size())
+
+
+func test_every_new_window_starts_with_nobody_selected() -> void:
+	var main: Control = await _main()
+	main.select(2)
+	await main.resolve_step()
+	assert_eq(main.selected, -1)
+	assert_false(main.board._layers.has("reach"))
+
+
+func test_nothing_can_be_planned_before_selecting() -> void:
+	var main: Control = await _main()
+	main.click_cell(main.state.cell_of(main.state.fighters[0]) + Vector2i(0, -1))
+	assert_eq(main.builder.plans().size(), 0, "a click on an empty cell with nobody selected does nothing")
+	main.choose_ability("bash")
+	assert_eq(main.builder.plans().size(), 0)

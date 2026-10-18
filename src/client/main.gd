@@ -134,10 +134,7 @@ func _begin_window() -> void:
 	builder.reset(state)
 	targeting = false
 	_banner.text = ""
-	selected = -1
-	for fighter: FighterState in state.living(FighterState.SIDE_KEEPERS):
-		selected = fighter.id
-		break
+	selected = -1  # nobody is selected: picking a Creature is what shows its move range
 	window_left = float(int(rules["step_window_ms"])) / 1000.0
 	_timer_bar.max_value = window_left
 	_timer_bar.value = window_left
