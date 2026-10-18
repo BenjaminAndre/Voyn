@@ -11,8 +11,9 @@ const PHASES: Array[String] = ["prep", "dash", "strike"]
 const TARGETS: Array[String] = ["any_cell", "empty_cell", "any_fighter", "enemy", "ally", "self"]
 const AFFECTS: Array[String] = ["enemies", "allies", "all"]
 const AREA_SHAPES: Array[String] = ["single", "burst", "line"]
-## Effect types resolved so far. push and pull arrive with T9; mutate and telegraph with T10.
-const EFFECT_TYPES: Array[String] = ["damage", "heal", "shield", "apply_status"]
+## Effect types resolved so far. mutate and telegraph arrive with T10.
+const EFFECT_TYPES: Array[String] = ["damage", "heal", "shield", "apply_status", "push", "pull"]
+const PUSH_ORIGINS: Array[String] = ["user", "target"]
 const STATUS_EFFECTS: Array[String] = ["shield", "rooted", "damage_taken_pct", "damage_dealt_pct"]
 const BEHAVIOR_KINDS: Array[String] = ["scripted_chase"]
 
@@ -116,7 +117,7 @@ static func _effects(dict: Dictionary, errors: Array[String]) -> void:
 		if effect.has("chance"):
 			errors.append("%s.chance is not supported yet (GDD R6.8 leaves open whether it rolls per effect or per fighter)" % where)
 			continue
-		if ["push", "pull", "mutate", "telegraph"].has(type):
+		if ["mutate", "telegraph"].has(type):
 			errors.append("%s: effect type '%s' is not supported yet" % [where, type])
 			continue
 		match type:
@@ -130,6 +131,13 @@ static func _effects(dict: Dictionary, errors: Array[String]) -> void:
 				_keys(effect, ["type", "amount", "duration"], [], where, errors)
 				_int(effect, "amount", 1, where, errors)
 				_int(effect, "duration", 1, where, errors)
+			"push", "pull":
+				_keys(effect, ["type", "distance", "push_origin"], ["push_origin"], where, errors)
+				_int(effect, "distance", 1, where, errors)
+				if effect.has("push_origin"):
+					_enum(effect, "push_origin", PUSH_ORIGINS, where, errors)
+				else:
+					effect["push_origin"] = "user"
 			"apply_status":
 				_keys(effect, ["type", "status", "duration", "magnitude"], [], where, errors)
 				_string(effect, "status", where, errors, true)

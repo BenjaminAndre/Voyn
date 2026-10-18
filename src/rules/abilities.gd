@@ -201,6 +201,8 @@ static func _prepare(state: FightState, fighter: FighterState, entry: Dictionary
 					ops.append({"kind": "shield", "fighter": id, "amount": int(effect["amount"]), "duration": int(effect["duration"]), "source": fighter.id})
 				"apply_status":
 					ops.append({"kind": "status", "fighter": id, "status": str(effect["status"]), "magnitude": int(effect["magnitude"]), "duration": int(effect["duration"]), "source": fighter.id})
+		if ["push", "pull"].has(str(effect["type"])):
+			ops.append_array(_displace_ops(state, fighter, effect, state.grid.index_of(target), hit))
 	return {"user": fighter.id, "ability": str(ability["id"]), "area": area, "karma": int(ability["karma"]), "ops": ops}
 
 
@@ -229,6 +231,8 @@ static func _apply_ops(state: FightState, prepared: Dictionary, events: Array[Di
 				Statuses.apply_shield(state, victim, int(op["amount"]), int(op["duration"]), int(op["source"]), events)
 			"status":
 				Statuses.apply(state, victim, str(op["status"]), int(op["magnitude"]), int(op["duration"]), int(op["source"]), events)
+			"displace":
+				Displacement.apply(state, victim, op, events)
 
 
 ## R11.2 Adds the footprint to every cell of the Area, clamped to the karma range.
@@ -261,6 +265,22 @@ static func _run_strike(state: FightState, entries: Array[Dictionary], events: A
 
 
 # --- Helpers ---
+
+
+## R6.3, R7.5 The displace ops of a push or pull effect, farthest from the origin first (ties in
+## roster order). The origin is the user's cell, or the target cell for `push_origin: target`.
+static func _displace_ops(state: FightState, user: FighterState, effect: Dictionary, target_index: int, hit: Array[int]) -> Array[Dictionary]:
+	var origin: int = target_index if str(effect["push_origin"]) == "target" else user.cell
+	var origin_cell: Vector2i = state.grid.cell_at(origin)
+	var order: Array[int] = hit.duplicate()
+	order.sort_custom(func(a: int, b: int) -> bool:
+		var da: int = Hex.distance(origin_cell, state.cell_of(state.fighters[a]))
+		var db: int = Hex.distance(origin_cell, state.cell_of(state.fighters[b]))
+		return da > db if da != db else a < b)
+	var ops: Array[Dictionary] = []
+	for id: int in order:
+		ops.append({"kind": "displace", "fighter": id, "distance": int(effect["distance"]), "origin": origin, "pull": str(effect["type"]) == "pull"})
+	return ops
 
 
 ## The target cell of a plan; for a `self` ability it may be left out.

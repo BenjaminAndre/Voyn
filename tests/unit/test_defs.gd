@@ -129,7 +129,7 @@ func test_effect_shapes_are_checked() -> void:
 
 
 func test_effects_not_supported_yet_are_rejected_clearly() -> void:
-	for type: String in ["push", "pull", "mutate", "telegraph"]:
+	for type: String in ["mutate", "telegraph"]:
 		var raw: Dictionary = _raw_ability()
 		raw["effects"] = [{"type": type}]
 		assert_true(_errors_contain(Defs.ability(raw), "not supported yet"), type)
@@ -156,3 +156,14 @@ func test_behaviors() -> void:
 	assert_true(Defs.behavior({"id": "scripted_chase", "kind": "scripted_chase"})["ok"])
 	assert_false(Defs.behavior({"id": "x", "kind": "greedy"})["ok"], "greedy arrives with T14")
 	assert_false(Defs.behavior({"id": "x"})["ok"])
+
+
+func test_push_and_pull_effects_need_a_distance() -> void:
+	for type: String in ["push", "pull"]:
+		var raw: Dictionary = _raw_ability()
+		raw["effects"] = [{"type": type, "distance": 2, "push_origin": "target"}]
+		assert_true(Defs.ability(raw)["ok"], type)
+		for bad: Dictionary in [{"type": type}, {"type": type, "distance": 0}, {"type": type, "distance": 1, "push_origin": "sky"}]:
+			var broken: Dictionary = _raw_ability()
+			broken["effects"] = [bad]
+			assert_false(Defs.ability(broken)["ok"], "rejects %s" % str(bad))

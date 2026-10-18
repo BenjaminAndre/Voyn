@@ -39,6 +39,12 @@ static func defs() -> Dictionary:
 		ability("mend", {"phase": "prep", "target": "ally", "affects": "allies", "min_range": 1, "max_range": 3, "effects": [{"type": "heal", "amount": 20}]}),
 		ability("sweep", {"max_range": 2, "line_only": true, "area": {"shape": "line", "length": 3}, "effects": [{"type": "damage", "base": 10}]}),
 		ability("smash", {"effects": [{"type": "damage", "base": 500}]}),
+		ability("shove", {"phase": "dash", "ap_cost": 2, "cooldown": 1, "effects": [{"type": "push", "distance": 2}, {"type": "damage", "base": 6}]}),
+		ability("gust", {"phase": "dash", "target": "self", "min_range": 0, "max_range": 0, "area": {"shape": "burst", "radius": 2}, "effects": [{"type": "push", "distance": 1}]}),
+		ability("blast", {"phase": "dash", "target": "any_cell", "min_range": 0, "max_range": 5, "affects": "all", "area": {"shape": "burst", "radius": 1}, "effects": [{"type": "push", "distance": 1, "push_origin": "target"}]}),
+		ability("hook", {"phase": "dash", "min_range": 1, "max_range": 5, "needs_los": true, "effects": [{"type": "pull", "distance": 3}]}),
+		ability("yank", {"phase": "dash", "min_range": 1, "max_range": 5, "needs_los": true, "effects": [{"type": "pull", "distance": 6}]}),
+		ability("long_push", {"phase": "dash", "effects": [{"type": "push", "distance": 4}]}),
 	]
 	var abilities: Dictionary = {}
 	for entry: Dictionary in list:

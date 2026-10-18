@@ -93,6 +93,8 @@ Every event carries `type`, `step` (0 during placement) and `phase`. The phase i
 | `move_blocked` | fighter, at, wanted, reason | `at` = where it stands, `wanted` = the cell it could not enter |
 | `damaged` | fighter, amount, absorbed, cause, hp | `amount` = damage dealt, `absorbed` = the part a Shield took, `hp` = HP left; `cause` as above |
 | `healed` | fighter, amount, cause, hp | |
+| `displaced` | fighter, from, to | a push or pull moved the fighter (not emitted if it could not move); followed by its blight `damaged` events |
+| `collided` | fighter, cells, damage | a push was cut short: `cells` not travelled, fixed `damage` dealt right after as `damaged` with cause `collision` |
 | `ability_used` | fighter, ability, cell | an ability started resolving; `cell` = its target |
 | `fizzled` | fighter, ability, cell, reason | `reason` = the failed R6.1 check: `not_enough_ap`, `out_of_range`, `no_los`, `not_on_axis`, `bad_target`, `on_cooldown` |
 | `ap_spent` | fighter, amount, ap | paid for every ability, fizzled or not; `ap` = left |
@@ -111,13 +113,13 @@ Upkeep order: Land effects on occupants (blight damage, thrive heal), then defea
 
 Order inside a move sub-tick: every `move_blocked` (ascending fighter ID), then every `moved` (ascending ID), then blight `damaged` events (ascending ID), then `defeated` events with their `karma_changed`.
 
-Still to come with T9-T10b: `displaced`, `relocated`, `collided`, `cell_mutated`, `chance_rolled`, `telegraph_placed`, `telegraph_resolved`, `interacted`. Each adds its row here with its task.
+Still to come with T10-T10b: `relocated`, `cell_mutated`, `chance_rolled`, `telegraph_placed`, `telegraph_resolved`, `interacted`. Each adds its row here with its task.
 
 ### Content schemas (T7)
 Validated by `Defs` (`src/rules/defs.gd`): floats become ints, unknown and missing keys are errors, `_doc` is allowed and dropped. One JSON object per file under `data/abilities/`, `data/statuses/`, `data/behaviors/`.
 - **Ability**: `{id, name?, phase: "prep" | "dash" | "strike", ap_cost, cooldown, target: "any_cell" | "empty_cell" | "any_fighter" | "enemy" | "ally" | "self", min_range, max_range, needs_los, line_only, area, affects: "enemies" | "allies" | "all", include_user?, effects: [], karma}`.
   - `area` = `{shape: "single"}`, `{shape: "burst", radius}` or `{shape: "line", length}` (a line needs `line_only`).
-  - `effects` may be empty (a footprint-only ability such as Seed) and resolve in listed order. So far: `{type: "damage", base}`, `{type: "heal", amount}`, `{type: "shield", amount, duration}`, `{type: "apply_status", status, duration, magnitude}`. `push`/`pull` arrive with T9 and `mutate`/`telegraph` with T10; the loader rejects them until then. `chance` is rejected until GDD R6.8 says whether it rolls per effect or per fighter.
+  - `effects` may be empty (a footprint-only ability such as Seed) and resolve in listed order. So far: `{type: "damage", base}`, `{type: "heal", amount}`, `{type: "shield", amount, duration}`, `{type: "apply_status", status, duration, magnitude}`. `{type: "push", distance, push_origin?}` and `{type: "pull", ...}` (origin `user`, the default, or `target`). `mutate`/`telegraph` arrive with T10; the loader rejects them until then. `chance` is rejected until GDD R6.8 says whether it rolls per effect or per fighter.
   - `affects`: `enemies` = the other Side, `allies` = the user's Side without the user, `all` = everyone in the Area but the user; `include_user` adds the user when it stands in the Area.
   - `cooldown` N: used in step s, usable again in step s + N (so 1 never restricts). A fizzled ability starts its cooldown too.
 - **Status**: `{id, name?, effect: "shield" | "rooted" | "damage_taken_pct" | "damage_dealt_pct", sign: 1 | -1}`. An instance on a fighter is `{name, effect, sign, magnitude, ends_step, source}`; a duration N applied in step s ends in the Upkeep of step s + N. Shield is built in and needs no file.

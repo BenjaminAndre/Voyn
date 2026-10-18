@@ -94,6 +94,17 @@ static func ap_spent(fighter: int, amount: int, ap: int) -> Dictionary:
 	return {"type": "ap_spent", "fighter": fighter, "amount": amount, "ap": ap}
 
 
+## A fighter was pushed or pulled from `from` to `to` (R7.5).
+static func displaced(fighter: int, from: Vector2i, to: Vector2i) -> Dictionary:
+	return {"type": "displaced", "fighter": fighter, "from": cell(from), "to": cell(to)}
+
+
+## A push was cut short (R7.6): `cells` = cells not travelled, `damage` = the fixed collision damage
+## (dealt right after as a `damaged` event with cause "collision").
+static func collided(fighter: int, cells: int, damage: int) -> Dictionary:
+	return {"type": "collided", "fighter": fighter, "cells": cells, "damage": damage}
+
+
 ## `how`: "cleansed", "killed" (Monsters) or "downed" (Creatures).
 static func defeated(fighter: int, how: String) -> Dictionary:
 	return {"type": "defeated", "fighter": fighter, "how": how}
