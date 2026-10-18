@@ -33,10 +33,10 @@ Who: **dev** = Sonnet session or `dev` agent · **grunt** = `grunt` agent (Haiku
 
 ## M1 — Complete headless rules engine
 Tests use fixture creatures, abilities, Monsters and Arenas in `tests/fixtures/`, not real content, so M1 does not wait on `02`/`03`.
-- [ ] **T3 Hex math** (dev, needs T1). Axial and cube coords, distance, neighbors, direction order, cell order, push-direction pick, `floor_div` (R1.1–R1.3, R7.5). Integer only.
-- [ ] **T4 LoS** (dev, needs T3). Implement the algorithm in `docs/architecture.md` exactly. Generate `tests/golden/los_table.json` for a fixture Arena after hand-checking a sample.
+- [x] **T3 Hex math** (dev, needs T1). Axial and cube coords, distance, neighbors, direction order, cell order, push-direction pick, `floor_div` (R1.1–R1.3, R7.5). Integer only.
+- [x] **T4 LoS** (dev, needs T3). Implement the algorithm in `docs/architecture.md` exactly. Generate `tests/golden/los_table.json` for a fixture Arena after hand-checking a sample.
   *Done when:* a symmetry test over every cell pair passes.
-- [ ] **T4b Karma automaton** (dev, needs T3). Pure function: karma grid → next karma grid (R11.4), plus `forecast`. It does not depend on the turn structure.
+- [x] **T4b Karma automaton** (dev, needs T3). Pure function: karma grid → next karma grid (R11.4), plus `forecast`. It does not depend on the turn structure.
   *Done when:* tests on an all-Neutral fixture show that a blight pair, a blight triangle and a hexagonal blob each stay bounded over 20 phases, a corrupted field runs away, the purity mirror holds, contested cells hold, and edge cells treat missing neighbors as 0.
 - [ ] **T5 State, step scheduler, events** (dev, needs T2, T2b, T3). Copyable plain-data state with a step counter. Plan format and `validate_plan`. A `resolve_step` skeleton with the phase order. Recharge refills, placement, `start_fight`, elimination checkpoints, Victory, Defeat, `forfeit` (R2, R3). Write the event schema into `docs/architecture.md`.
 - [ ] **T6 Movement + `reachable`** (dev, needs T5). Simultaneous lockstep movement with conflicts, swaps and cycles (R4.8, the algorithm in `docs/architecture.md`). Also Engagement, Rooted, blight entry damage, Blightborn, default path, defeat mid-path (R4).
