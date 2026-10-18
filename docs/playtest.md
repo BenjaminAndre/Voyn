@@ -19,4 +19,11 @@ To start a round, tell any session "playtest round ready" (the pilot triages) or
 *(You write here. Format: `- <hash> <note>`)*
 
 ## Round 1: Playable 1
-Waiting for the first playable build (see "Now" in `docs/tasks.md`).
+- **Build**: `3e39997` (T13b). Play it at https://benjaminandre.github.io/Voyn/ (every push to `main` replaces it; the commit hash of the build you are on is in the bottom-right corner of the screen, so start your Inbox lines with it).
+- **What it is**: PH Encounter 1 on PH Nave, placeholder content only (`docs/gdd/90-placeholder-content.md`). You control all three Creatures: PH Tank, PH Striker, PH Archer.
+- **How to play**:
+  - Click a Creature, then a blue cell to move. Pick an ability, then a yellow cell to aim it (a Guard-type ability needs no target). "Ability first, then move" flips the order. Right-click or Esc clears the selected Creature's plan.
+  - Space or "Ready" ends the window early; the window is 8 s. Tick "Untimed (dev)" to think for as long as you like. "Threats" hatches the cells the Monsters could hit.
+  - Floating numbers above fighters are the preview (the real resolution of your plans, with Monsters waiting). The Land meter shows board karma now and after the step.
+- **Not in this build** (known gaps, not bugs): placement, Telegraphs, Keeper interactions, a smart Monster AI (they use the placeholder `scripted_chase`), co-op (T13c), sound. Standing still loses in about 16 steps.
+- Things worth judging: is a step readable? Is 8 s enough? Do the Creatures feel different? Is the Land (karma) understandable without explanation? Is the fight too short or too long?
