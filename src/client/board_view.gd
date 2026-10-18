@@ -136,6 +136,16 @@ func clear_overlay(layer: String) -> void:
 		_layers.erase(layer)
 
 
+## Shows preview texts above fighters: {fighter id: {"text": String, "color": Color}}. Others are cleared.
+func set_previews(texts: Dictionary) -> void:
+	for id: int in _fighters.keys():
+		var view: FighterView = _fighters[id]
+		if texts.has(id):
+			view.set_preview(str(texts[id]["text"]), texts[id]["color"])
+		else:
+			view.set_preview("", Color.WHITE)
+
+
 func clear_overlays() -> void:
 	for layer: String in _layers.keys():
 		clear_overlay(layer)

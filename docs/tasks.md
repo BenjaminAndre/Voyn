@@ -19,12 +19,13 @@ Placeholder content only (`docs/gdd/90-placeholder-content.md`). No Telegraphs, 
 - [x] **T9 Displacement** (dev, needs T7). Push, pull, Heavy, collision damage, farthest-first order, blight entered mid-push, Immovable/Stationary, Trail move cancelled after displacement (R7.5–R7.7, R3.6).
 - [x] **G1 Placeholder data** (grunt, needs T7). Turn `docs/gdd/90-placeholder-content.md` into JSON under `data/` (creatures, abilities, statuses, monsters, behaviors, arenas, encounters), following the T7 schemas. Dev spot-checks it with the loader and a load test.
 - [x] **T12 Minimal 3D board** (dev, needs T5, G1). Hex prism tiles from Arena data, tinted by karma; forecast chevrons; Land meter (R9.3); fixed orthographic camera; placeholder meshes by Side and creature; phase-by-phase animation from events (tweens only).
-- [ ] **T13 Planning UI** (dev, needs T8, T9, T12).
+- [x] **T13 Planning UI** (dev, needs T8, T9, T12). Shipped single-player; local co-op is split out as T13c below.
   - The 8 s window timer with Ready, plus a dev-only "untimed" toggle (not a game rule).
   - Plan building per Creature (path + ability + order), and recharge pips.
   - Basic previews: reachable cells, valid targets, damage numbers, footprint.
   - Monsters use the `scripted_chase` behavior from the placeholder spec.
   - Local co-op on one screen, with allies' plans visible.
+- [ ] **T13c Local co-op** (dev, after Playable 1). Several players on one screen, each controlling some Creatures (`ContentLoader.fight_from` already takes a `players` list), allies' plans visible, one Ready per player.
 - [ ] **T13b Fight end + restart** (dev, needs T13). Outcome banner (Victory, Defeat, Bloom, Collapse), Monsters Cleansed k/n, final board karma, a Restart button. Push to `main`: this is **Playable 1**.
 - [ ] **R1 Playtest round 1** (you). Play the Pages build and write the checklist in `docs/playtest.md`.
 

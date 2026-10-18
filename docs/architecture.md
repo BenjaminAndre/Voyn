@@ -68,7 +68,9 @@ Export presets must include `data/**/*.json`, because Godot does not export non-
 - `src/client/hex_layout.gd`: flat-top hexes in the XZ plane, axial `(q, r)` to world and back (floats are fine here).
 - `src/client/board_view.gd`: tiles tinted by karma (two shades each way), pillars, fighters (`fighter_view.gd`), named highlight layers, forecast markers (a green cone where the next Land phase purifies, a red inverted cone where it corrupts), the fixed orthographic camera, mouse picking by casting a ray onto the tile plane, and `play_events(events, final_state)`: plays a step's events in order with tweens only (slides, floating numbers, tints) and then snaps to the final state. It decides no rule.
 - `src/client/land_meter.gd`: the Land meter bar.
-- `src/client/main.gd`: the main scene. Dev option: `-- --screenshot=<path>` saves one frame as a PNG and quits.
+- `src/client/plan_builder.gd`: turns clicks into plans without any node. It asks the engine for reachable cells (default paths), valid targets and Areas, validates, and previews by resolving the Creatures' plans on a copy with no Monster plans (R9.2).
+- `src/ai/scripted_chase.gd`: the placeholder Monster behavior (nearest Creature, strike from where it stands, else close in), deterministic and integer-only; replaced by the greedy AI in T14.
+- `src/client/main.gd`: the main scene and the step loop: planning window (8 s timer, Ready, a dev-only "untimed" switch) -> `RulesEngine.resolve_step` with the player's and the Monsters' plans -> `BoardView.play_events` -> next window, until the fight ends. Single player controls every Creature. Dev option: `-- --screenshot=<path>` saves one frame as a PNG and quits.
 
 ## Determinism and portability
 Same state + same action gives the same events on every platform, and in a future Go port.

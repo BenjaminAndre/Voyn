@@ -13,6 +13,7 @@ const COLORS: Dictionary = {
 
 var fighter_id: int = -1
 var _label: Label3D
+var _preview: Label3D
 var _body: MeshInstance3D
 var _base_scale: Vector3 = Vector3.ONE
 
@@ -36,6 +37,16 @@ func setup(fighter: FighterState) -> void:
 	_label.outline_size = 10
 	_label.position.y = 1.5
 	add_child(_label)
+
+	_preview = Label3D.new()
+	_preview.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_preview.no_depth_test = true
+	_preview.pixel_size = 0.009
+	_preview.font_size = 40
+	_preview.outline_size = 12
+	_preview.position.y = 2.25
+	_preview.visible = false
+	add_child(_preview)
 	refresh(fighter)
 
 
@@ -50,6 +61,13 @@ func set_hp_text(hp: int, fighter: FighterState) -> void:
 	var shield: int = Statuses.shield_amount(fighter)
 	if shield > 0:
 		_label.text += " +%d" % shield
+
+
+## Shows what the plan preview says will happen to this fighter ("" hides it).
+func set_preview(text: String, color: Color) -> void:
+	_preview.visible = text != ""
+	_preview.text = text
+	_preview.modulate = color
 
 
 func fade_out(duration: float) -> Tween:
