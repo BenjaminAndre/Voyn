@@ -1,0 +1,12 @@
+{
+  "id": "ph_brute",
+  "name": "PH Brute",
+  "max_hp": 160,
+  "max_ap": 6,
+  "max_mp": 2,
+  "power": 0,
+  "recharge_steps": 4,
+  "traits": ["heavy", "blightborn"],
+  "abilities": ["slam"],
+  "behavior": "scripted_chase"
+}

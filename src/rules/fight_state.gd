@@ -114,6 +114,8 @@ static func create(arena: Dictionary, roster: Array, rules: Dictionary, seed: in
 		var fighter: FighterState = FighterState.new()
 		fighter.id = i
 		fighter.name = str(entry.get("name", "fighter%d" % i))
+		fighter.kind = str(entry.get("kind", ""))
+		fighter.behavior = str(entry.get("behavior", ""))
 		var side: String = str(entry.get("side", ""))
 		if side == "creature":
 			fighter.side = FighterState.SIDE_KEEPERS

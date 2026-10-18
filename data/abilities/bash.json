@@ -1,0 +1,18 @@
+{
+  "id": "bash",
+  "name": "Bash",
+  "phase": "strike",
+  "ap_cost": 3,
+  "cooldown": 0,
+  "target": "enemy",
+  "min_range": 1,
+  "max_range": 1,
+  "needs_los": false,
+  "line_only": false,
+  "area": {"shape": "single"},
+  "affects": "enemies",
+  "effects": [
+    {"type": "damage", "base": 18}
+  ],
+  "karma": -1
+}

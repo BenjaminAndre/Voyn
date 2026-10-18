@@ -1,0 +1,19 @@
+{
+  "id": "shove",
+  "name": "Shove",
+  "phase": "dash",
+  "ap_cost": 2,
+  "cooldown": 1,
+  "target": "enemy",
+  "min_range": 1,
+  "max_range": 1,
+  "needs_los": false,
+  "line_only": false,
+  "area": {"shape": "single"},
+  "affects": "enemies",
+  "effects": [
+    {"type": "push", "distance": 2},
+    {"type": "damage", "base": 6}
+  ],
+  "karma": 0
+}

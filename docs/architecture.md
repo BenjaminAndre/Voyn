@@ -124,7 +124,11 @@ Validated by `Defs` (`src/rules/defs.gd`): floats become ints, unknown and missi
   - `cooldown` N: used in step s, usable again in step s + N (so 1 never restricts). A fizzled ability starts its cooldown too.
 - **Status**: `{id, name?, effect: "shield" | "rooted" | "damage_taken_pct" | "damage_dealt_pct", sign: 1 | -1}`. An instance on a fighter is `{name, effect, sign, magnitude, ends_step, source}`; a duration N applied in step s ends in the Upkeep of step s + N. Shield is built in and needs no file.
 - **Behavior**: `{id, kind: "scripted_chase"}` (`greedy` arrives with T14).
-- **Fighter data** gains `abilities: [ability ID]`.
+- **Creature** (`data/creatures/<id>.json`): `{id, name?, max_hp, max_ap, max_mp, power, recharge_steps, traits: [..], abilities: [ability ID]}`. Traits: `nimble`, `heavy`, `immovable`, `stationary`, `blightborn`. **Monster** (`data/monsters/<id>.json`): the same plus `behavior: behavior ID`. Monster abilities must respect the footprint cap (R11.2).
+- **Arena** (`data/arenas/<id>.json`): `{id, name?, radius, obstacles: [[q, r]], karma: [[q, r, k]], creature_start_cells: [[q, r]], collapse_at, bloom_at}`. A hexagon of that radius around (0, 0), every cell Neutral except the `karma` entries.
+- **Encounter** (`data/encounters/<id>.json`): `{id, name?, arena: arena ID, monsters: [{monster: monster ID, cell: [q, r]}], party: [creature ID]}`; monsters in Encounter order, party in party order.
+- **Manifest** (`data/manifest.json`): `{abilities: [paths], statuses: [...], behaviors: [...], creatures: [...], monsters: [...], arenas: [...], encounters: [...]}`, paths relative to `data/`. A web export cannot list a folder reliably, so every file is listed, and a test checks the manifest against the folders. A file's `id` equals its name without `.json`.
+- **Loading**: `ContentLoader.load_all()` reads the manifest, validates each file with `Defs` and checks references; `ContentLoader.fight_from(content, rules, encounter_id, seed)` builds a fight from an Encounter.
 
 ### Data shapes (provisional, until D2/G1 fix the content files)
 - **Arena**: `{radius, obstacles: [[q, r]], karma: [[q, r, k]], creature_start_cells: [[q, r]], collapse_at, bloom_at}`. `collapse_at` must be negative and `bloom_at` positive; the fight refuses to be created without them.

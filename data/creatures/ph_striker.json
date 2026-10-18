@@ -1,0 +1,11 @@
+{
+  "id": "ph_striker",
+  "name": "PH Striker",
+  "max_hp": 100,
+  "max_ap": 6,
+  "max_mp": 4,
+  "power": 10,
+  "recharge_steps": 3,
+  "traits": [],
+  "abilities": ["lunge", "whirl"]
+}

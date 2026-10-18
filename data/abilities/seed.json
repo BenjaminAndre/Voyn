@@ -1,0 +1,16 @@
+{
+  "id": "seed",
+  "name": "Seed",
+  "phase": "prep",
+  "ap_cost": 3,
+  "cooldown": 2,
+  "target": "any_cell",
+  "min_range": 1,
+  "max_range": 5,
+  "needs_los": true,
+  "line_only": false,
+  "area": {"shape": "burst", "radius": 1},
+  "affects": "all",
+  "effects": [],
+  "karma": 1
+}

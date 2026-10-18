@@ -1,0 +1,19 @@
+{
+  "id": "pin",
+  "name": "Pin",
+  "phase": "strike",
+  "ap_cost": 2,
+  "cooldown": 2,
+  "target": "enemy",
+  "min_range": 2,
+  "max_range": 4,
+  "needs_los": true,
+  "line_only": false,
+  "area": {"shape": "single"},
+  "affects": "enemies",
+  "effects": [
+    {"type": "damage", "base": 6},
+    {"type": "apply_status", "status": "rooted", "duration": 1, "magnitude": 0}
+  ],
+  "karma": 0
+}

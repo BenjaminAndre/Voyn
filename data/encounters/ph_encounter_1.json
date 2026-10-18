@@ -1,0 +1,12 @@
+{
+  "id": "ph_encounter_1",
+  "name": "PH Encounter 1",
+  "arena": "ph_nave",
+  "monsters": [
+    {"monster": "ph_brute", "cell": [0, -4]},
+    {"monster": "ph_brute", "cell": [1, -4]},
+    {"monster": "ph_flier", "cell": [2, -5]},
+    {"monster": "ph_flier", "cell": [-1, -3]}
+  ],
+  "party": ["ph_tank", "ph_striker", "ph_archer"]
+}

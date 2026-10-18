@@ -1,0 +1,12 @@
+{
+  "id": "ph_flier",
+  "name": "PH Flier",
+  "max_hp": 70,
+  "max_ap": 4,
+  "max_mp": 4,
+  "power": 0,
+  "recharge_steps": 2,
+  "traits": ["nimble", "blightborn"],
+  "abilities": ["peck"],
+  "behavior": "scripted_chase"
+}

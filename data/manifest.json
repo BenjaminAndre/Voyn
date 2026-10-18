@@ -1,0 +1,35 @@
+{
+  "abilities": [
+    "abilities/bash.json",
+    "abilities/guard.json",
+    "abilities/lunge.json",
+    "abilities/peck.json",
+    "abilities/pin.json",
+    "abilities/seed.json",
+    "abilities/shot.json",
+    "abilities/shove.json",
+    "abilities/slam.json",
+    "abilities/whirl.json"
+  ],
+  "statuses": [
+    "statuses/rooted.json"
+  ],
+  "behaviors": [
+    "behaviors/scripted_chase.json"
+  ],
+  "creatures": [
+    "creatures/ph_tank.json",
+    "creatures/ph_striker.json",
+    "creatures/ph_archer.json"
+  ],
+  "monsters": [
+    "monsters/ph_brute.json",
+    "monsters/ph_flier.json"
+  ],
+  "arenas": [
+    "arenas/ph_nave.json"
+  ],
+  "encounters": [
+    "encounters/ph_encounter_1.json"
+  ]
+}

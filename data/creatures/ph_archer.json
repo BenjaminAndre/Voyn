@@ -1,0 +1,11 @@
+{
+  "id": "ph_archer",
+  "name": "PH Archer",
+  "max_hp": 90,
+  "max_ap": 6,
+  "max_mp": 3,
+  "power": 0,
+  "recharge_steps": 3,
+  "traits": [],
+  "abilities": ["shot", "seed", "pin"]
+}

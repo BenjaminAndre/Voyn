@@ -53,6 +53,129 @@ static func ability(raw: Variant) -> Dictionary:
 	return {"ok": true, "value": dict, "errors": errors}
 
 
+## Traits a fighter may carry (GDD R2.3).
+const TRAITS: Array[String] = ["nimble", "heavy", "immovable", "stationary", "blightborn"]
+const FIGHTER_KEYS: Array[String] = [
+	"id", "name", "max_hp", "max_ap", "max_mp", "power", "recharge_steps", "traits", "abilities",
+]
+
+
+static func creature(raw: Variant) -> Dictionary:
+	return _fighter(raw, "creature", false)
+
+
+static func monster(raw: Variant) -> Dictionary:
+	return _fighter(raw, "monster", true)
+
+
+## An Arena: {id, name?, radius, obstacles: [[q, r]], karma: [[q, r, k]], creature_start_cells:
+## [[q, r]], collapse_at (negative), bloom_at (positive)}. Cell lists are checked against the
+## radius, and starts and obstacles against each other, when the Arena is built into a fight.
+static func arena(raw: Variant) -> Dictionary:
+	var errors: Array[String] = []
+	var dict: Dictionary = _object(raw, "arena", errors)
+	if not errors.is_empty():
+		return _fail(errors)
+	_keys(dict, ["id", "name", "radius", "obstacles", "karma", "creature_start_cells", "collapse_at", "bloom_at"], ["name"], "arena", errors)
+	_string(dict, "id", "arena", errors, true)
+	_int(dict, "radius", 1, "arena", errors)
+	_int(dict, "collapse_at", -1000000, "arena", errors)
+	_int(dict, "bloom_at", 1, "arena", errors)
+	if dict.get("collapse_at") is int and int(dict["collapse_at"]) >= 0:
+		errors.append("arena.collapse_at must be negative")
+	_cells(dict, "obstacles", 2, "arena", errors)
+	_cells(dict, "creature_start_cells", 2, "arena", errors)
+	_cells(dict, "karma", 3, "arena", errors)
+	for entry: Variant in dict.get("karma", []) if dict.get("karma") is Array else []:
+		if entry is Array and (entry as Array).size() == 3 and (entry[2] is int) and (int(entry[2]) < -2 or int(entry[2]) > 2):
+			errors.append("arena.karma values must be between -2 and 2")
+	if not errors.is_empty():
+		return _fail(errors)
+	return {"ok": true, "value": dict, "errors": errors}
+
+
+## An Encounter: {id, name?, arena: arena ID, monsters: [{monster: monster ID, cell: [q, r]}] in
+## Encounter order, party: [creature ID] in party order}.
+static func encounter(raw: Variant) -> Dictionary:
+	var errors: Array[String] = []
+	var dict: Dictionary = _object(raw, "encounter", errors)
+	if not errors.is_empty():
+		return _fail(errors)
+	_keys(dict, ["id", "name", "arena", "monsters", "party"], ["name"], "encounter", errors)
+	_string(dict, "id", "encounter", errors, true)
+	_string(dict, "arena", "encounter", errors, true)
+	if not (dict.get("monsters") is Array) or (dict["monsters"] as Array).is_empty():
+		errors.append("encounter.monsters must be a non-empty array")
+	else:
+		for entry: Variant in dict["monsters"]:
+			if not (entry is Dictionary):
+				errors.append("encounter.monsters entries must be objects")
+				continue
+			var where: Dictionary = entry
+			_keys(where, ["monster", "cell"], [], "encounter.monsters[]", errors)
+			_string(where, "monster", "encounter.monsters[]", errors, true)
+			if not (where.get("cell") is Array and (where["cell"] as Array).size() == 2 and where["cell"][0] is int and where["cell"][1] is int):
+				errors.append("encounter.monsters[].cell must be [q, r]")
+	if not (dict.get("party") is Array) or (dict["party"] as Array).is_empty():
+		errors.append("encounter.party must be a non-empty array")
+	else:
+		for entry: Variant in dict["party"]:
+			if not (entry is String) or str(entry) == "":
+				errors.append("encounter.party entries must be creature IDs")
+	if not errors.is_empty():
+		return _fail(errors)
+	return {"ok": true, "value": dict, "errors": errors}
+
+
+static func _fighter(raw: Variant, what: String, is_monster: bool) -> Dictionary:
+	var errors: Array[String] = []
+	var dict: Dictionary = _object(raw, what, errors)
+	if not errors.is_empty():
+		return _fail(errors)
+	var allowed: Array[String] = FIGHTER_KEYS.duplicate()
+	if is_monster:
+		allowed.append("behavior")
+	_keys(dict, allowed, ["name"], what, errors)
+	_string(dict, "id", what, errors, true)
+	_int(dict, "max_hp", 1, what, errors)
+	_int(dict, "max_ap", 0, what, errors)
+	_int(dict, "max_mp", 0, what, errors)
+	_int(dict, "power", -100, what, errors)
+	_int(dict, "recharge_steps", 1, what, errors)
+	if is_monster:
+		_string(dict, "behavior", what, errors, true)
+	for key: String in ["traits", "abilities"]:
+		if not (dict.get(key) is Array):
+			if dict.has(key):
+				errors.append("%s.%s must be an array" % [what, key])
+			continue
+		for entry: Variant in dict[key]:
+			if not (entry is String) or str(entry) == "":
+				errors.append("%s.%s entries must be strings" % [what, key])
+			elif key == "traits" and not TRAITS.has(str(entry)):
+				errors.append("%s.traits: unknown trait %s" % [what, str(entry)])
+	if not errors.is_empty():
+		return _fail(errors)
+	return {"ok": true, "value": dict, "errors": errors}
+
+
+## `key` must be an array of arrays of `width` ints.
+static func _cells(dict: Dictionary, key: String, width: int, where: String, errors: Array[String]) -> void:
+	if not dict.has(key):
+		return
+	if not (dict[key] is Array):
+		errors.append("%s.%s must be an array" % [where, key])
+		return
+	for entry: Variant in dict[key]:
+		var ok: bool = entry is Array and (entry as Array).size() == width
+		if ok:
+			for number: Variant in entry:
+				ok = ok and number is int
+		if not ok:
+			errors.append("%s.%s entries must be %d integers" % [where, key, width])
+			return
+
+
 static func status(raw: Variant) -> Dictionary:
 	var errors: Array[String] = []
 	var dict: Dictionary = _object(raw, "status", errors)

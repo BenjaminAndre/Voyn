@@ -6,6 +6,9 @@ const SIDE_KEEPERS: int = 0
 const SIDE_MONSTERS: int = 1
 
 var id: int = 0
+## The creature or Monster definition ID it was built from ("" in tests), and a Monster's behavior ID.
+var kind: String = ""
+var behavior: String = ""
 var side: int = SIDE_KEEPERS
 ## Index of the player who controls this fighter (Creatures); -1 for Monsters.
 var player: int = -1
@@ -53,6 +56,8 @@ func on_board() -> bool:
 func clone() -> FighterState:
 	var copy: FighterState = FighterState.new()
 	copy.id = id
+	copy.kind = kind
+	copy.behavior = behavior
 	copy.side = side
 	copy.player = player
 	copy.name = name

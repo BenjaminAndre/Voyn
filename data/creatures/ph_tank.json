@@ -1,0 +1,11 @@
+{
+  "id": "ph_tank",
+  "name": "PH Tank",
+  "max_hp": 160,
+  "max_ap": 6,
+  "max_mp": 3,
+  "power": 0,
+  "recharge_steps": 4,
+  "traits": [],
+  "abilities": ["shove", "bash", "guard"]
+}

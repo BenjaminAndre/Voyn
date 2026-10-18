@@ -1,0 +1,19 @@
+{
+  "id": "guard",
+  "name": "Guard",
+  "phase": "prep",
+  "ap_cost": 3,
+  "cooldown": 2,
+  "target": "self",
+  "min_range": 0,
+  "max_range": 0,
+  "needs_los": false,
+  "line_only": false,
+  "area": {"shape": "burst", "radius": 1},
+  "affects": "allies",
+  "include_user": true,
+  "effects": [
+    {"type": "shield", "amount": 20, "duration": 2}
+  ],
+  "karma": 1
+}

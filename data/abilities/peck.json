@@ -1,0 +1,18 @@
+{
+  "id": "peck",
+  "name": "Peck",
+  "phase": "strike",
+  "ap_cost": 2,
+  "cooldown": 0,
+  "target": "enemy",
+  "min_range": 1,
+  "max_range": 2,
+  "needs_los": false,
+  "line_only": false,
+  "area": {"shape": "single"},
+  "affects": "enemies",
+  "effects": [
+    {"type": "damage", "base": 10}
+  ],
+  "karma": -1
+}
