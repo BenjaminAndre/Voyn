@@ -9,6 +9,8 @@ signal cell_hovered(cell: Vector2i)
 ## A banner text to show during resolution, e.g. the current phase.
 signal banner(text: String)
 signal land_changed(board_karma: int)
+## Emitted just before each rules event plays (the resolution log listens).
+signal event_played(event: Dictionary)
 
 const TILE_SIZE: float = 1.0
 const TILE_HEIGHT: float = 0.3
@@ -250,6 +252,7 @@ static func _distance_to_segment(point: Vector2, a: Vector2, b: Vector2) -> floa
 ## Plays the rules events of one step in order, then snaps to `final_state`.
 func play_events(events: Array, final_state: FightState) -> void:
 	for event: Dictionary in events:
+		event_played.emit(event)
 		await _play(event, final_state)
 	sync(final_state)
 

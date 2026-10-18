@@ -326,3 +326,66 @@ func test_input_state_invariants_hold_under_random_play() -> void:
 		_assert_input_invariants(main, label)
 		if main.mode == main.Mode.ENDED:
 			break
+
+
+# --- Round 2, item 2.5: the resolution log panel ---
+
+
+func test_the_log_starts_empty_and_fills_as_a_step_plays() -> void:
+	var main: Control = await _main()
+	assert_string_contains(main._log_label.text, "appear here")
+	await main.resolve_step()
+	assert_string_contains(main._log_label.text, "Step 1")
+	assert_string_contains(main._log_label.text, "Lead moves")
+	assert_string_contains(main._log_label.text, "Upkeep")
+
+
+func test_the_log_keeps_the_last_step_while_the_next_window_is_open() -> void:
+	var main: Control = await _main()
+	await main.resolve_step()
+	assert_eq(main.mode, main.Mode.PLANNING)
+	assert_string_contains(main._log_label.text, "Step 1", "still there in the next window")
+	await main.resolve_step()
+	assert_string_contains(main._log_label.text, "Step 2")
+	assert_false(main._log_label.text.contains("Step 1"), "replaced when the next step plays")
+
+
+func test_the_log_lists_what_the_monsters_did() -> void:
+	var main: Control = await _main()
+	await main.resolve_step()
+	assert_string_contains(main._log_label.text, "moves", "the Monsters advanced")
+
+
+func test_the_log_panel_can_be_collapsed_and_expanded() -> void:
+	var main: Control = await _main()
+	assert_true(main._log_label.visible)
+	main._log_toggle.pressed.emit()
+	assert_true(main.log_collapsed)
+	assert_false(main._log_label.visible)
+	assert_eq(main._log_toggle.text, "Log +")
+	await main.resolve_step()
+	assert_false(main._log_label.visible, "stays collapsed across steps")
+	assert_string_contains(main.resolution_log.text(), "Step 1", "but it kept logging")
+	main.set_log_collapsed(false)
+	assert_true(main._log_label.visible)
+	assert_eq(main._log_toggle.text, "Log -")
+
+
+func test_restart_clears_the_log() -> void:
+	var main: Control = await _main()
+	await main.resolve_step()
+	main.restart()
+	main.board.animation_speed = 0.0
+	assert_eq(main.resolution_log.entries.size(), 0)
+	assert_string_contains(main._log_label.text, "appear here")
+
+
+func test_the_log_is_built_from_the_event_stream_only() -> void:
+	var main: Control = await _main()
+	var events: Array = []
+	main.board.event_played.connect(func(event: Dictionary) -> void: events.append(event))
+	await main.resolve_step()
+	var rebuilt: ResolutionLog = ResolutionLog.new()
+	for event: Dictionary in events:
+		rebuilt.add(event, main.state)
+	assert_eq(main.resolution_log.text(), rebuilt.text())

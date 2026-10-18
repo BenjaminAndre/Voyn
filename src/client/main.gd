@@ -44,6 +44,11 @@ var _party_box: VBoxContainer
 var _actions_box: VBoxContainer
 var _banner: Label
 var _end_panel: PanelContainer
+var _log_panel: PanelContainer
+var _log_label: RichTextLabel
+var _log_toggle: Button
+var resolution_log: ResolutionLog = ResolutionLog.new()
+var log_collapsed: bool = false
 var _end_title: Label
 var _end_details: Label
 var _hint: Label
@@ -123,6 +128,7 @@ func _build_views() -> void:
 	board.setup(state)
 	board.cell_clicked.connect(_on_cell_clicked)
 	board.cell_hovered.connect(_on_cell_hovered)
+	board.event_played.connect(_on_event_played)
 	board.banner.connect(func(text: String) -> void: _banner.text = text)
 	board.land_changed.connect(func(value: int) -> void: meter.set_values(value, value))
 	meter.configure(state.collapse_at, state.bloom_at)
@@ -212,6 +218,26 @@ func click_cell(cell: Vector2i) -> void:
 		_refresh()
 
 
+## The resolution log is built from the event stream, one event as it plays.
+func _on_event_played(event: Dictionary) -> void:
+	resolution_log.add(event, state)
+	_show_log()
+
+
+func _show_log() -> void:
+	if resolution_log.entries.is_empty():
+		_log_label.text = "[i]Each step's phases and effects appear here as they play.[/i]"
+	else:
+		_log_label.text = resolution_log.bbcode()
+
+
+## Collapses or expands the log panel.
+func set_log_collapsed(collapsed: bool) -> void:
+	log_collapsed = collapsed
+	_log_label.visible = not collapsed
+	_log_toggle.text = "Log +" if collapsed else "Log -"
+
+
 func _on_cell_clicked(cell: Vector2i) -> void:
 	click_cell(cell)
 
@@ -299,6 +325,8 @@ Steps: %d" % [
 ## Starts a new fight from the same Encounter with a fresh seed.
 func restart() -> void:
 	_end_panel.hide()
+	resolution_log.clear()
+	_show_log()
 	_start_fight(Time.get_ticks_msec() % 1000000)
 
 
@@ -540,6 +568,29 @@ func _build_ui() -> void:
 	_hint.offset_top = -34
 	_hint.offset_bottom = -8
 	add_child(_hint)
+
+	_log_panel = PanelContainer.new()
+	var log_style: StyleBoxFlat = StyleBoxFlat.new()
+	log_style.bg_color = Color(0.08, 0.09, 0.11, 0.82)
+	log_style.set_content_margin_all(8)
+	_log_panel.add_theme_stylebox_override("panel", log_style)
+	_log_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_log_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_log_panel.position = Vector2(-10, 66)
+	var log_box: VBoxContainer = VBoxContainer.new()
+	_log_panel.add_child(log_box)
+	_log_toggle = Button.new()
+	_log_toggle.text = "Log -"
+	_log_toggle.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_log_toggle.pressed.connect(func() -> void: set_log_collapsed(not log_collapsed))
+	log_box.add_child(_log_toggle)
+	_log_label = RichTextLabel.new()
+	_log_label.bbcode_enabled = true
+	_log_label.scroll_following = true
+	_log_label.custom_minimum_size = Vector2(250, 360)
+	log_box.add_child(_log_label)
+	add_child(_log_panel)
+	_show_log()
 
 	_end_panel = PanelContainer.new()
 	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
