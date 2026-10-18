@@ -32,6 +32,11 @@ Your notes are kept in quotes. The `[dev]` items can be built now. The `[design]
 - [ ] **2.4 Never leave the UI stuck.** *"I got stuck on 'select yellow case for target' when the turn ended while I was planning."* Opening or closing a window cancels any aiming in progress and clears stale hints. No input state may survive into a mode where it can't be finished.
 - [ ] **2.5 Resolution log on the right.** *"The phases and effects that happen could be in a box on the right, which is kinda hidden."* A panel at the right edge lists each phase and its events as they play ("Lead moves: Tank 2 cells", "Strike: Brute takes 22"). It is out of the way, can be collapsed, and holds the last step until the next one plays.
 
+- [ ] **2.11 Clicks never reached the board** (your follow-up: "the raycasting to select a tile fails"). → `d0c72ae`
+  - **Cause**: the scene root is a full-screen Control with the default mouse filter (Stop), so the GUI swallowed every click that wasn't on a button. Selecting, moving and aiming all failed in the web build. The tests passed only because they call `click_cell` directly.
+  - **Fix**: the root Control ignores the mouse. A new `test_input_routing.gd` pushes real mouse events through a viewport, so this can't come back silently.
+  - **Known trade-off**: a fighter's figure wins clicks over the tile just behind it (2.1), so that tile is only clickable on its far half. Say so if it gets in the way.
+
 ### `[design]`: approved by you, with your changes (build after 2.5)
 - [ ] **2.6 Move is chosen like an ability; no order toggle.** *"Move command just fails."* · *"The toggle 'move after action' is unnecessary."* · *"show 'movement' as an ability"*
   - **Cause of the failed moves**: once an ability was chosen, every click was read as an aim, so clicking a blue cell did nothing.
