@@ -206,7 +206,7 @@ func cell_at_screen(position: Vector2) -> Vector2i:
 func pick_at_screen(position: Vector2) -> Vector2i:
 	var best: int = -1
 	var best_distance: float = INF
-	var reach: float = maxf(6.0, 0.6 * _pixels_per_unit())
+	var reach: float = maxf(6.0, 0.3 * _pixels_per_unit())
 	var ids: Array = _fighters.keys()
 	ids.sort()
 	for id: int in ids:
@@ -214,9 +214,10 @@ func pick_at_screen(position: Vector2) -> Vector2i:
 		var fighter: FighterState = state.fighters[id]
 		if not view.visible or not fighter.on_board():
 			continue
-		# The figure is a column from its feet to its label.
+		# The figure is a narrow column from its feet up to its label. It stays narrow and short so the
+		# tile drawn just behind a figure can still be clicked at its center.
 		var feet: Vector2 = _camera.unproject_position(view.position + Vector3(0, 0.1, 0))
-		var top: Vector2 = _camera.unproject_position(view.position + Vector3(0, 1.6, 0))
+		var top: Vector2 = _camera.unproject_position(view.position + Vector3(0, 1.4, 0))
 		var distance: float = _distance_to_segment(position, feet, top)
 		if distance <= reach and distance < best_distance:
 			best = id

@@ -79,24 +79,93 @@ func test_targets_are_checked_from_the_cell_the_plan_moves_to() -> void:
 	builder.set_ability(0, "bash")
 	assert_eq(builder.target_cells(0).size(), 0, "nothing adjacent to (0,0)")
 	builder.set_path_to(0, _v(2, 0))
-	assert_eq(builder.planned_cell(0), state.grid.index_of(_v(2, 0)), "move first (the default)")
+	assert_eq(builder.planned_cell(0), state.grid.index_of(_v(2, 0)), "the Move was set first, so the zone follows it")
 	assert_eq(builder.target_cells(0), PackedInt32Array([state.grid.index_of(_v(3, 0))]))
-	builder.set_order(0, "ability_first")
-	assert_eq(builder.planned_cell(0), state.grid.index_of(_v(0, 0)))
-	assert_eq(builder.target_cells(0).size(), 0)
+
+
+func test_the_plan_order_is_the_order_the_slots_were_filled() -> void:
+	var state: FightState = _setup([3, 0])
+	var move_first: PlanBuilder = _builder(state)
+	move_first.set_path_to(0, _v(2, 0))
+	move_first.set_ability(0, "bash")
+	assert_true(move_first.set_target(0, _v(3, 0)))
+	assert_eq(move_first.plan_for(0)["order"], "move_first", "close in and strike")
+	var ability_first: PlanBuilder = _builder(state)
+	ability_first.set_ability(0, "shot")
+	assert_true(ability_first.set_target(0, _v(3, 0)))
+	ability_first.set_path_to(0, _v(-1, 0))
+	assert_eq(ability_first.plan_for(0)["order"], "ability_first", "hit and run")
+	assert_eq(ability_first.planned_cell(0), state.grid.index_of(_v(0, 0)), "the ability is used from where it stands now")
+	assert_true(ability_first.validation(0)["ok"], str(ability_first.validation(0)["errors"]))
+
+
+func test_the_zones_do_not_depend_on_the_order() -> void:
+	var state: FightState = _setup([3, 0])
+	var builder: PlanBuilder = _builder(state)
+	builder.set_ability(0, "shot")
+	builder.set_target(0, _v(3, 0))
+	var before: Array[int] = builder.reachable_cells(0)
+	builder.set_path_to(0, _v(-1, 0))
+	assert_eq(builder.reachable_cells(0), before, "the Move zone is always from where it stands now")
+
+
+func test_choosing_a_slot_again_replaces_it_and_keeps_its_place_in_the_order() -> void:
+	var state: FightState = _setup([3, 0])
+	var builder: PlanBuilder = _builder(state)
+	builder.set_ability(0, "shot")
+	builder.set_target(0, _v(3, 0))
+	builder.set_path_to(0, _v(-1, 0))
+	assert_eq(builder.draft(0)["order"], "ability_first")
+	builder.set_path_to(0, _v(0, -1))
+	assert_eq(builder.draft(0)["path"], [_v(0, -1)], "the Move was replaced")
+	assert_eq(builder.draft(0)["order"], "ability_first", "and it kept its place")
+	builder.set_ability(0, "shot")
+	assert_eq(builder.draft(0)["order"], "ability_first", "re-picking the ability keeps its place too")
+	builder.set_target(0, _v(3, 0))
+	assert_eq(builder.draft(0)["slots"], ["ability", "move"])
+
+
+func test_clearing_a_slot_removes_it_from_the_order() -> void:
+	var builder: PlanBuilder = _builder(_setup([3, 0]))
+	builder.set_ability(0, "shot")
+	builder.set_target(0, _v(3, 0))
+	builder.set_path_to(0, _v(-1, 0))
+	builder.set_path_to(0, _v(0, 0))
+	assert_eq(builder.draft(0)["path"], [], "choosing the own cell clears the Move")
+	assert_eq(builder.draft(0)["slots"], ["ability"])
+	assert_eq(builder.plan_for(0)["ability"], "shot")
+
+
+func test_cancelling_an_unaimed_ability_drops_it() -> void:
+	var builder: PlanBuilder = _builder(_setup([3, 0]))
+	builder.set_ability(0, "bash")
+	builder.cancel_pending_ability(0)
+	assert_eq(str(builder.draft(0)["ability"]), "")
+	builder.set_ability(0, "guard")
+	builder.cancel_pending_ability(0)
+	assert_eq(builder.plan_for(0)["ability"], "guard", "an aimed (self) ability stays")
+
+
+func test_move_availability() -> void:
+	var state: FightState = _setup()
+	var builder: PlanBuilder = _builder(state)
+	assert_eq(builder.move_unavailable_reason(0), "")
+	state.fighters[0].mp = 0
+	assert_eq(builder.move_unavailable_reason(0), "no MP")
+	state.fighters[0].mp = 3
+	state.fighters[0].statuses.append(TestFixtures.status("rooted"))
+	assert_eq(builder.move_unavailable_reason(0), "rooted")
 
 
 func test_changing_the_move_forgets_a_target_that_is_no_longer_valid() -> void:
 	var builder: PlanBuilder = _builder(_setup([3, 0]))
-	builder.set_ability(0, "bash")
 	builder.set_path_to(0, _v(2, 0))
+	builder.set_ability(0, "bash")
 	assert_true(builder.set_target(0, _v(3, 0)))
 	builder.set_path_to(0, _v(1, 0))
 	assert_false(builder.draft(0)["has_target"], "(3,0) is out of range from (1,0)")
 	builder.set_path_to(0, _v(2, 0))
 	assert_true(builder.set_target(0, _v(3, 0)))
-	builder.set_order(0, "ability_first")
-	assert_false(builder.draft(0)["has_target"])
 
 
 func test_area_cells_show_what_an_ability_would_affect() -> void:
@@ -192,7 +261,7 @@ func test_summaries_read_in_plain_words() -> void:
 	builder.set_ability(0, "bash")
 	assert_string_contains(builder.summary(0), "pick a target")
 	builder.set_target(0, _v(3, 0))
-	assert_string_contains(builder.summary(0), "move first")
+	assert_eq(builder.summary(0), "move 2 then Bash".replace("Bash", "bash"))
 
 
 func test_clear_removes_a_draft() -> void:

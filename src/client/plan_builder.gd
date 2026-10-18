@@ -1,11 +1,19 @@
 class_name PlanBuilder
 extends RefCounted
-## Builds the player's plans while a window is open (T13). Pure client logic with no nodes, so it
-## is tested without a scene. It asks the rules engine for every fact (reachable cells, valid
-## targets, Areas, validation, the preview) and decides none of them.
+## Builds the player's plans while a window is open (T13, round 2 item 2.6). Pure client logic with
+## no nodes, so it is tested without a scene. It asks the rules engine for every fact (reachable
+## cells, valid targets, Areas, validation, the preview) and decides none of them.
+##
+## A plan has two slots, Move and Ability (GDD R9.4). The order they are filled in is the plan order
+## (R3.4): Move then ability is "close in and strike" (move_first), ability then Move is "hit and run"
+## (ability_first). Choosing a slot again replaces it and keeps its place in the order.
 ##
 ## A draft per Creature: {"path": Array[Vector2i], "ability": String, "target": Vector2i,
-## "has_target": bool, "order": "move_first" | "ability_first"}.
+## "has_target": bool, "slots": Array[String] (filled slots in fill order: "move", "ability"),
+## "order": "move_first" | "ability_first" (derived from slots)}.
+
+const SLOT_MOVE: String = "move"
+const SLOT_ABILITY: String = "ability"
 
 var state: FightState
 var drafts: Dictionary = {}
@@ -18,7 +26,10 @@ func reset(new_state: FightState) -> void:
 
 func draft(id: int) -> Dictionary:
 	if not drafts.has(id):
-		drafts[id] = {"path": [] as Array[Vector2i], "ability": "", "target": Vector2i.ZERO, "has_target": false, "order": Plans.ORDER_MOVE_FIRST}
+		drafts[id] = {
+			"path": [] as Array[Vector2i], "ability": "", "target": Vector2i.ZERO, "has_target": false,
+			"slots": [] as Array[String], "order": Plans.ORDER_MOVE_FIRST,
+		}
 	return drafts[id]
 
 
@@ -30,13 +41,18 @@ func clear_all() -> void:
 	drafts = {}
 
 
-## Sets the move to `cell` along the default path (R4.6). Returns false if it is out of reach.
-## Choosing the fighter's own cell clears the move.
+func has_plan(id: int) -> bool:
+	return not plan_for(id).is_empty()
+
+
+## Sets the Move to `cell` along the default path (R4.6), replacing any earlier Move. Returns false
+## if it is out of reach. Choosing the fighter's own cell clears the Move.
 func set_path_to(id: int, cell: Vector2i) -> bool:
 	var fighter: FighterState = state.fighters[id]
 	var entry: Dictionary = draft(id)
 	if cell == state.cell_of(fighter):
 		entry["path"] = [] as Array[Vector2i]
+		_unfill(id, SLOT_MOVE)
 		_forget_stale_target(id)
 		return true
 	var reach: Dictionary = Movement.reachable(state, fighter)
@@ -44,23 +60,24 @@ func set_path_to(id: int, cell: Vector2i) -> bool:
 	if not reach.has(index):
 		return false
 	entry["path"] = (reach[index]["path"] as Array[Vector2i]).duplicate()
+	_fill(id, SLOT_MOVE)
 	_forget_stale_target(id)
 	return true
 
 
-## Chooses an ability ("" for none). The target must be chosen again.
+## Chooses an ability ("" for none), replacing any earlier one, and waits for its target. A `self`
+## ability is complete at once. A replaced ability keeps its place in the plan order.
 func set_ability(id: int, ability_id: String) -> void:
 	var entry: Dictionary = draft(id)
 	entry["ability"] = ability_id
 	entry["has_target"] = false
-	if ability_id != "" and str(state.abilities[ability_id]["target"]) == "self":
+	if ability_id == "":
+		_unfill(id, SLOT_ABILITY)
+		return
+	if str(state.abilities[ability_id]["target"]) == "self":
 		entry["has_target"] = true
+		_fill(id, SLOT_ABILITY)
 		entry["target"] = state.grid.cell_at(planned_cell(id))
-
-
-func set_order(id: int, order: String) -> void:
-	draft(id)["order"] = order
-	_forget_stale_target(id)
 
 
 ## Aims the chosen ability at `cell`. Returns false if it is not a valid target from where the
@@ -73,10 +90,21 @@ func set_target(id: int, cell: Vector2i) -> bool:
 		return false
 	entry["target"] = cell
 	entry["has_target"] = true
+	_fill(id, SLOT_ABILITY)
 	return true
 
 
+## Drops an ability that was chosen but never aimed (cancelling the aim). Does nothing otherwise.
+func cancel_pending_ability(id: int) -> void:
+	if not drafts.has(id):
+		return
+	var entry: Dictionary = drafts[id]
+	if str(entry["ability"]) != "" and not bool(entry["has_target"]):
+		set_ability(id, "")
+
+
 ## The cell index the Creature will use its ability from: the end of its path if it moves first.
+## While an ability is still being aimed after a Move is set, that Move comes first.
 func planned_cell(id: int) -> int:
 	var fighter: FighterState = state.fighters[id]
 	var entry: Dictionary = draft(id)
@@ -86,7 +114,7 @@ func planned_cell(id: int) -> int:
 	return fighter.cell
 
 
-## Cells the Creature could walk to with its current MP.
+## Cells the Creature could walk to with its current MP (always from where it stands now).
 func reachable_cells(id: int) -> Array[int]:
 	var cells: Array[int] = []
 	var reach: Dictionary = Movement.reachable(state, state.fighters[id])
@@ -94,6 +122,18 @@ func reachable_cells(id: int) -> Array[int]:
 		cells.append(index)
 	cells.sort()
 	return cells
+
+
+## Why the Creature cannot choose Move right now ("" if it can).
+func move_unavailable_reason(id: int) -> String:
+	var fighter: FighterState = state.fighters[id]
+	if fighter.has_status("rooted"):
+		return "rooted"
+	if fighter.has_trait("stationary"):
+		return "cannot move"
+	if fighter.mp <= 0:
+		return "no MP"
+	return ""
 
 
 ## Valid targets of the chosen ability, from where the plan puts the Creature.
@@ -124,7 +164,7 @@ func unavailable_reason(id: int, ability_id: String) -> String:
 
 
 ## The plan dictionary for one Creature, or {} if the draft plans nothing. An ability with no
-## target yet (and not `self`) is left out.
+## target yet is left out.
 func plan_for(id: int) -> Dictionary:
 	if not drafts.has(id):
 		return {}
@@ -197,21 +237,54 @@ func preview_changes(result: Dictionary) -> Dictionary:
 	return changes
 
 
-## A one-line description of a Creature's plan for its card.
+## A one-line description of a Creature's plan for its card, in plan order.
 func summary(id: int) -> String:
 	var entry: Dictionary = draft(id)
 	var parts: Array[String] = []
 	var path: Array = entry["path"]
-	if not path.is_empty():
-		parts.append("move %d" % path.size())
 	var ability_id: String = str(entry["ability"])
+	var ability_text: String = ""
 	if ability_id != "":
-		parts.append(str(state.abilities[ability_id].get("name", ability_id)) if bool(entry["has_target"]) else "pick a target for %s" % ability_id)
-	if path.size() > 0 and ability_id != "" and bool(entry["has_target"]):
-		parts.append("(" + ("move first" if str(entry["order"]) == Plans.ORDER_MOVE_FIRST else "ability first") + ")")
-	return ", ".join(parts) if not parts.is_empty() else "waits"
+		var label: String = str(state.abilities[ability_id].get("name", ability_id))
+		ability_text = label if bool(entry["has_target"]) else "pick a target for %s" % label
+	var move_text: String = "move %d" % path.size() if not path.is_empty() else ""
+	var slots: Array = entry["slots"]
+	if str(entry["order"]) == Plans.ORDER_ABILITY_FIRST and slots.has(SLOT_ABILITY):
+		parts = [ability_text, move_text]
+	else:
+		parts = [move_text, ability_text]
+	var kept: Array[String] = []
+	for text: String in parts:
+		if text != "":
+			kept.append(text)
+	return " then ".join(kept) if not kept.is_empty() else "waits"
 
 
+func _fill(id: int, slot: String) -> void:
+	var entry: Dictionary = draft(id)
+	var slots: Array = entry["slots"]
+	if not slots.has(slot):
+		slots.append(slot)
+	_update_order(id)
+
+
+func _unfill(id: int, slot: String) -> void:
+	var entry: Dictionary = draft(id)
+	var slots: Array = entry["slots"]
+	slots.erase(slot)
+	_update_order(id)
+
+
+## The plan order is the order the slots were filled in (ability first only if it came first).
+func _update_order(id: int) -> void:
+	var entry: Dictionary = draft(id)
+	var slots: Array = entry["slots"]
+	var ability_at: int = slots.find(SLOT_ABILITY)
+	var move_at: int = slots.find(SLOT_MOVE)
+	entry["order"] = Plans.ORDER_ABILITY_FIRST if (ability_at >= 0 and move_at >= 0 and ability_at < move_at) else Plans.ORDER_MOVE_FIRST
+
+
+## After the Move changes, an aimed ability may no longer be valid from the new position.
 func _forget_stale_target(id: int) -> void:
 	var entry: Dictionary = draft(id)
 	if str(entry["ability"]) == "" or not bool(entry["has_target"]):

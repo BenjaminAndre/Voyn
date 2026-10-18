@@ -265,14 +265,14 @@ func test_the_hint_follows_the_input_state() -> void:
 	var main: Control = await _main()
 	assert_string_contains(_hint(main), "Click a creature")
 	main.select(0)
-	assert_string_contains(_hint(main), "blue cell")
+	assert_string_contains(_hint(main), "zone to move")
 	main.choose_ability("bash")
 	assert_string_contains(_hint(main), "aim at")
 	main.clear_selected()
-	assert_string_contains(_hint(main), "blue cell")
+	assert_string_contains(_hint(main), "Pick Move or an ability")
 	main.choose_ability("guard")
 	assert_false(main.targeting, "a self ability needs no aim")
-	assert_string_contains(_hint(main), "blue cell")
+	assert_string_contains(_hint(main), "Pick Move or an ability")
 
 
 func test_ending_the_fight_clears_aiming_and_the_hint() -> void:
@@ -286,6 +286,12 @@ func test_ending_the_fight_clears_aiming_and_the_hint() -> void:
 
 
 func _assert_input_invariants(main: Control, label: String) -> void:
+	assert_false(main.moving and main.targeting, "%s: at most one aim at a time" % label)
+	if main.moving:
+		assert_eq(main.mode, main.Mode.PLANNING, "%s: moving only while planning" % label)
+		assert_gte(main.selected, 0, "%s: moving needs a selected Creature" % label)
+	if main.mode != main.Mode.PLANNING:
+		assert_false(main.moving, "%s: no moving outside a window" % label)
 	if main.targeting:
 		assert_eq(main.mode, main.Mode.PLANNING, "%s: aiming only while planning" % label)
 		assert_gte(main.selected, 0, "%s: aiming needs a selected Creature" % label)
@@ -314,7 +320,7 @@ func test_input_state_invariants_hold_under_random_play() -> void:
 			2:
 				main.click_cell(main.state.grid.cell_at(prng.next_below(main.state.grid.size())))
 			3:
-				main.set_order(prng.next_below(2) == 0)
+				main.choose_move()
 			4:
 				main.clear_selected()
 			5:
@@ -389,3 +395,120 @@ func test_the_log_is_built_from_the_event_stream_only() -> void:
 	for event: Dictionary in events:
 		rebuilt.add(event, main.state)
 	assert_eq(main.resolution_log.text(), rebuilt.text())
+
+
+# --- Round 2, item 2.6: Move is chosen like an ability ---
+
+
+func _buttons_text(main: Control) -> Array[String]:
+	var texts: Array[String] = []
+	for child: Node in main._actions_box.get_children():
+		if child is Button:
+			texts.append((child as Button).text)
+	return texts
+
+
+func test_the_move_button_sits_next_to_the_abilities_and_there_is_no_order_toggle() -> void:
+	var main: Control = await _main()
+	main.select(0)
+	await get_tree().process_frame
+	var texts: Array[String] = _buttons_text(main)
+	assert_true(texts[0].begins_with("Move"), "Move comes first: %s" % str(texts))
+	assert_true(texts.size() >= 5, "Move, three abilities and Clear")
+	for child: Node in main._actions_box.get_children():
+		assert_false(child is CheckBox, "the 'ability first' toggle is gone")
+	assert_false(main.has_method("set_order"))
+
+
+func test_move_is_picked_like_an_ability_and_picking_one_replaces_the_aim() -> void:
+	var main: Control = await _main()
+	main.select(0)
+	assert_true(main.moving, "selecting shows the move zone")
+	main.choose_ability("bash")
+	assert_false(main.moving)
+	assert_true(main.targeting)
+	main.choose_move()
+	assert_true(main.moving)
+	assert_false(main.targeting)
+	assert_eq(str(main.builder.draft(0)["ability"]), "", "the unaimed ability was dropped")
+	main.choose_move()
+	assert_false(main.moving, "picking Move again cancels the aim")
+
+
+func test_a_click_in_the_zone_sets_the_move_and_ends_the_aim() -> void:
+	var main: Control = await _main()
+	main.select(0)
+	var start: Vector2i = main.state.cell_of(main.state.fighters[0])
+	main.click_cell(start + Vector2i(0, -1))
+	assert_false(main.moving)
+	assert_eq(main.builder.draft(0)["path"], [start + Vector2i(0, -1)])
+	main.choose_move()
+	main.click_cell(start + Vector2i(-1, 0))
+	assert_eq(main.builder.draft(0)["path"], [start + Vector2i(-1, 0)], "picking Move again replaces the Move")
+
+
+func test_the_plan_order_is_the_order_you_picked_in() -> void:
+	var main: Control = await _main()
+	main.select(0)
+	var start: Vector2i = main.state.cell_of(main.state.fighters[0])
+	main.click_cell(start + Vector2i(0, -1))
+	main.choose_ability("guard")
+	assert_eq(main.builder.plan_for(0)["order"], "move_first", "Move then ability: close in and strike")
+	main.clear_selected()
+	main.choose_ability("guard")
+	main.choose_move()
+	main.click_cell(start + Vector2i(0, -1))
+	assert_eq(main.builder.plan_for(0)["order"], "ability_first", "ability then Move: hit and run")
+	assert_string_contains(main.builder.summary(0), "Guard then move".replace("Guard", "guard").replace("guard", main.state.abilities["guard"].get("name", "guard")))
+
+
+func test_escape_cancels_the_aim_then_the_plan_then_the_selection() -> void:
+	var main: Control = await _main()
+	main.select(0)
+	var start: Vector2i = main.state.cell_of(main.state.fighters[0])
+	main.click_cell(start + Vector2i(0, -1))
+	main.choose_ability("bash")
+	assert_true(main.targeting)
+	main.cancel_or_clear()
+	assert_false(main.targeting, "first Esc: the aim")
+	assert_eq(main.builder.plans().size(), 1, "the Move is still there")
+	main.cancel_or_clear()
+	assert_eq(main.builder.plans().size(), 0, "second Esc: the plan")
+	assert_eq(main.selected, 0)
+	main.cancel_or_clear()
+	assert_eq(main.selected, -1, "third Esc: the selection")
+
+
+func test_right_click_does_what_escape_does() -> void:
+	var main: Control = await _main()
+	main.select(0)
+	main.choose_ability("bash")
+	var click: InputEventMouseButton = InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_RIGHT
+	click.pressed = true
+	main._unhandled_input(click)
+	assert_false(main.targeting)
+
+
+func test_a_creature_that_cannot_move_cannot_pick_move() -> void:
+	var main: Control = await _main()
+	main.state.fighters[0].statuses.append(TestFixtures.status("rooted"))
+	main.select(0)
+	assert_false(main.moving, "a rooted Creature shows no move zone")
+	main.choose_move()
+	assert_false(main.moving)
+	assert_string_contains(main.last_message, "cannot move")
+	await get_tree().process_frame
+	for child: Node in main._actions_box.get_children():
+		if child is Button and (child as Button).text.begins_with("Move"):
+			assert_true((child as Button).disabled)
+
+
+func test_clicking_another_creature_while_aiming_switches_to_it() -> void:
+	var main: Control = await _main()
+	main.select(0)
+	main.choose_ability("bash")
+	main.click_cell(main.state.cell_of(main.state.fighters[1]))
+	assert_eq(main.selected, 1)
+	assert_false(main.targeting)
+	assert_eq(str(main.builder.draft(0)["ability"]), "", "the first Creature's unaimed ability was dropped")

@@ -29,6 +29,9 @@ var meter: LandMeter
 var builder: PlanBuilder = PlanBuilder.new()
 var mode: Mode = Mode.PLANNING
 var selected: int = -1
+## Aiming (GDD R9.4): `moving` = the Move has been picked and a cell is awaited; `targeting` = an
+## ability has been picked and a target is awaited. At most one is true.
+var moving: bool = false
 var targeting: bool = false
 var window_left: float = 0.0
 var untimed: bool = false
@@ -58,6 +61,8 @@ var _group: ButtonGroup = ButtonGroup.new()
 
 
 func _ready() -> void:
+	# This full-screen Control must not stop the mouse: clicks have to reach the 3D board.
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build_ui()
 	if not _load_content():
 		return
@@ -81,9 +86,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_SPACE or event.keycode == KEY_ENTER:
 			resolve_step()
 		elif event.keycode == KEY_ESCAPE:
-			clear_selected()
+			cancel_or_clear()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		clear_selected()
+		cancel_or_clear()
 
 
 # --- Starting a fight ---
@@ -141,6 +146,7 @@ func _build_views() -> void:
 func _begin_window() -> void:
 	mode = Mode.PLANNING
 	builder.reset(state)
+	moving = false
 	targeting = false
 	last_message = ""
 	_banner.text = ""
@@ -152,25 +158,52 @@ func _begin_window() -> void:
 	_refresh()
 
 
-## Selects a Creature.
+## Selects a Creature. Its move zone shows at once, so you can see where it can go.
 func select(id: int) -> void:
 	if mode != Mode.PLANNING or not state.fighters[id].on_board() or not state.fighters[id].is_creature():
 		return
+	if selected >= 0 and selected != id:
+		builder.cancel_pending_ability(selected)
 	selected = id
 	targeting = false
+	moving = builder.move_unavailable_reason(id) == ""
 	last_message = ""
 	_refresh()
 
 
-## Chooses an ability for the selected Creature; a `self` ability is complete at once.
+## Picks Move for the selected Creature, like picking an ability: its zone shows, then a cell is
+## clicked. Picking it again while aiming cancels the aim; the Move already set stays.
+func choose_move() -> void:
+	if mode != Mode.PLANNING or selected < 0:
+		return
+	last_message = ""
+	var reason: String = builder.move_unavailable_reason(selected)
+	if reason != "":
+		last_message = "%s cannot move: %s." % [state.fighters[selected].name, reason]
+		_refresh()
+		return
+	builder.cancel_pending_ability(selected)
+	targeting = false
+	moving = not moving
+	_refresh()
+
+
+## Picks an ability for the selected Creature; a `self` ability is complete at once. Picking one
+## again replaces it (a `self` ability that is already set is dropped instead).
 func choose_ability(ability_id: String) -> void:
 	if mode != Mode.PLANNING or selected < 0:
 		return
 	last_message = ""
 	if builder.unavailable_reason(selected, ability_id) != "":
 		return
-	if str(builder.draft(selected)["ability"]) == ability_id:
-		builder.set_ability(selected, "")  # pressing it again unchooses it
+	moving = false
+	var entry: Dictionary = builder.draft(selected)
+	var same: bool = str(entry["ability"]) == ability_id
+	if same and targeting:
+		builder.cancel_pending_ability(selected)  # picking it again while aiming cancels the aim
+		targeting = false
+	elif same and bool(entry["has_target"]) and str(state.abilities[ability_id]["target"]) == "self":
+		builder.set_ability(selected, "")
 		targeting = false
 	else:
 		builder.set_ability(selected, ability_id)
@@ -178,45 +211,67 @@ func choose_ability(ability_id: String) -> void:
 	_refresh()
 
 
-func set_order(ability_first: bool) -> void:
-	if mode != Mode.PLANNING or selected < 0:
+## Esc or right-click: cancels the aim in progress; else clears the selected Creature's plan; else
+## deselects.
+func cancel_or_clear() -> void:
+	if mode != Mode.PLANNING:
 		return
 	last_message = ""
-	builder.set_order(selected, Plans.ORDER_ABILITY_FIRST if ability_first else Plans.ORDER_MOVE_FIRST)
-	targeting = str(builder.draft(selected)["ability"]) != "" and not bool(builder.draft(selected)["has_target"])
+	if moving or targeting:
+		moving = false
+		targeting = false
+		if selected >= 0:
+			builder.cancel_pending_ability(selected)
+	elif selected >= 0 and builder.has_plan(selected):
+		builder.clear(selected)
+	else:
+		selected = -1
 	_refresh()
 
 
+## Clears the selected Creature's whole plan (the button).
 func clear_selected() -> void:
 	if mode != Mode.PLANNING or selected < 0:
 		return
 	builder.clear(selected)
+	moving = false
 	targeting = false
 	last_message = ""
 	_refresh()
 
 
-## A click on the board while planning: select a Creature, aim the chosen ability, or set a move.
+## A click on the board while planning: pick a Creature, or fill the slot being aimed (Move or
+## ability) with the clicked cell.
 func click_cell(cell: Vector2i) -> void:
 	if mode != Mode.PLANNING or not state.grid.has_cell(cell):
+		return
+	var occupant: FighterState = state.fighter_at(state.grid.index_of(cell))
+	if moving and selected >= 0:
+		if builder.set_path_to(selected, cell):
+			moving = false
+			last_message = ""
+			_refresh()
+			return
+		if occupant != null and occupant.is_creature():
+			select(occupant.id)
+			return
+		_set_hint("Out of reach this step.")
+		_refresh()
 		return
 	if targeting and selected >= 0:
 		if builder.set_target(selected, cell):
 			targeting = false
-			_set_hint("")
+			last_message = ""
 			_refresh()
 			return
+		if occupant != null and occupant.is_creature():
+			select(occupant.id)
+			return
 		_set_hint("That cannot be targeted from where this plan puts the Creature.")
-	var occupant: FighterState = state.fighter_at(state.grid.index_of(cell))
+		_refresh()
+		return
 	if occupant != null and occupant.is_creature():
 		select(occupant.id)
-		return
-	if selected >= 0 and not targeting:
-		if builder.set_path_to(selected, cell):
-			_set_hint("")
-		else:
-			_set_hint("Out of reach this step.")
-		_refresh()
 
 
 ## The resolution log is built from the event stream, one event as it plays.
@@ -244,13 +299,20 @@ func _on_cell_clicked(cell: Vector2i) -> void:
 
 
 func _on_cell_hovered(cell: Vector2i) -> void:
-	if mode != Mode.PLANNING or not targeting or selected < 0:
-		board.clear_overlay("area")
+	board.clear_overlay("area")
+	board.clear_overlay("hover_path")
+	if mode != Mode.PLANNING or selected < 0:
 		return
-	if builder.target_cells(selected).has(state.grid.index_of(cell)):
+	var index: int = state.grid.index_of(cell)
+	if targeting and builder.target_cells(selected).has(index):
 		board.set_overlay("area", builder.area_cells(selected, cell), COLOR_AREA)
-	else:
-		board.clear_overlay("area")
+	elif moving:
+		var reach: Dictionary = Movement.reachable(state, state.fighters[selected])
+		if reach.has(index):
+			var steps: Array[int] = []
+			for step_cell: Vector2i in reach[index]["path"]:
+				steps.append(state.grid.index_of(step_cell))
+			board.set_overlay("hover_path", steps, COLOR_PATH)
 
 
 # --- Resolving a step ---
@@ -348,15 +410,24 @@ func _refresh() -> void:
 ## Creature is selected, has chosen an ability, and has not yet aimed it, during a planning window.
 func _normalize_input_state() -> void:
 	if mode != Mode.PLANNING:
+		moving = false
 		targeting = false
 		return
 	if selected >= 0 and not state.fighters[selected].on_board():
 		selected = -1
-	if selected < 0 or not builder.drafts.has(selected):
+	if selected < 0:
+		moving = false
 		targeting = false
 		return
-	var entry: Dictionary = builder.drafts[selected]
-	targeting = targeting and str(entry["ability"]) != "" and not bool(entry["has_target"])
+	if moving and builder.move_unavailable_reason(selected) != "":
+		moving = false
+	if not builder.drafts.has(selected):
+		targeting = false
+	else:
+		var entry: Dictionary = builder.drafts[selected]
+		targeting = targeting and str(entry["ability"]) != "" and not bool(entry["has_target"])
+	if targeting:
+		moving = false
 
 
 ## The line at the bottom: a stored message if there is one, else what to do next in this state.
@@ -368,12 +439,14 @@ func _refresh_hint() -> void:
 		return
 	match mode:
 		Mode.PLANNING:
-			if targeting:
-				_hint.text = "Pick a cell to aim at. Esc cancels the plan."
+			if moving:
+				_hint.text = "Click a cell in the zone to move there. Esc cancels."
+			elif targeting:
+				_hint.text = "Pick a cell to aim at. Esc cancels."
 			elif selected < 0:
 				_hint.text = "Click a creature to see where it can go. Space = Ready."
 			else:
-				_hint.text = "Click a blue cell to move, or pick an ability. Space = Ready."
+				_hint.text = "Pick Move or an ability. Esc clears this creature's plan. Space = Ready."
 		Mode.RESOLVING:
 			_hint.text = "Resolving the step..."
 		Mode.ENDED:
@@ -418,8 +491,17 @@ func _update_actions() -> void:
 		return
 	var fighter: FighterState = state.fighters[selected]
 	var title: Label = Label.new()
-	title.text = "%s: abilities" % fighter.name
+	title.text = "%s: pick one" % fighter.name
 	_actions_box.add_child(title)
+	var move_reason: String = builder.move_unavailable_reason(selected)
+	var move_button: Button = Button.new()
+	move_button.toggle_mode = true
+	move_button.text = "Move  (%d MP)" % fighter.mp
+	move_button.disabled = move_reason != ""
+	move_button.tooltip_text = move_reason if move_reason != "" else "Walk to a cell in the zone"
+	move_button.set_pressed_no_signal(moving or not (builder.draft(selected)["path"] as Array).is_empty())
+	move_button.pressed.connect(choose_move)
+	_actions_box.add_child(move_button)
 	for ability_id: String in fighter.abilities:
 		var ability: Dictionary = state.abilities[ability_id]
 		var reason: String = builder.unavailable_reason(selected, ability_id)
@@ -431,13 +513,8 @@ func _update_actions() -> void:
 		button.set_pressed_no_signal(str(builder.draft(selected)["ability"]) == ability_id)
 		button.pressed.connect(func() -> void: choose_ability(ability_id))
 		_actions_box.add_child(button)
-	var order: CheckBox = CheckBox.new()
-	order.text = "Ability first, then move"
-	order.set_pressed_no_signal(str(builder.draft(selected)["order"]) == Plans.ORDER_ABILITY_FIRST)
-	order.toggled.connect(set_order)
-	_actions_box.add_child(order)
 	var clear: Button = Button.new()
-	clear.text = "Clear plan (Esc)"
+	clear.text = "Clear plan"
 	clear.pressed.connect(clear_selected)
 	_actions_box.add_child(clear)
 
@@ -480,7 +557,7 @@ func _update_overlays() -> void:
 			for index: int in builder.target_cells(selected):
 				targets.append(index)
 			board.set_overlay("target", targets, COLOR_TARGET)
-		else:
+		elif moving:
 			board.set_overlay("reach", builder.reachable_cells(selected), COLOR_REACH)
 	if _threat_check.button_pressed:
 		var zone: Dictionary = {}
