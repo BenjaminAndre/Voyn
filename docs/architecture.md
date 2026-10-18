@@ -80,7 +80,34 @@ Same state + same action gives the same events on every platform, and in a futur
     - `moved`: fighter, from, to, mp_spent;
     - `move_blocked`: fighter, at, wanted, reason (`conflict`, `swap`, `cycle`, `occupied`, `no_mp`, `rooted`, `displaced`).
 
-  Task T5 writes the full event schema into this file before the first golden replay.
+### Event schema (T5, T6)
+Every event carries `type`, `step` (0 during placement) and `phase`. The phase is `setup` for events outside the six phases of a step: placement, `step_started`, forfeit. Events are plain dictionaries of ints, strings and `[q, r]` cells, in the order the rules produced them.
+
+| type | fields | notes |
+|---|---|---|
+| `placed` | fighter, cell | a Creature put on a start cell |
+| `fight_started` | | placement is over; step 1 begins |
+| `step_started` | | first event of a step |
+| `phase_started` | name | `lead_move`, `prep`, `dash`, `strike`, `trail_move` or `upkeep`; `phase` equals `name` |
+| `moved` | fighter, from, to, mp_spent, mp_left | one cell entered in one sub-tick, with Engagement paid (`mp_left` feeds the MP pips) |
+| `move_blocked` | fighter, at, wanted, reason | `at` = where it stands, `wanted` = the cell it could not enter |
+| `damaged` | fighter, amount, cause, hp | `hp` = HP left; `cause` as above |
+| `defeated` | fighter, how | `cleansed`, `killed` or `downed`; followed by its `karma_changed` events |
+| `karma_changed` | cell, from, to | in cell order within one cause |
+| `refilled` | fighter, ap, mp | only if a pool actually changed |
+| `fight_ended` | outcome | `collapse`, `bloom`, `victory` or `defeat` |
+
+`move_blocked` reasons: `conflict`, `swap` (two movers exchanging cells), `cycle` (longer), `occupied`, `no_mp`, `rooted`, `displaced` (a Trail move cancelled because its fighter is not on the planned cell any more), plus `not_walkable` (terrain changed since planning) and `stationary`.
+
+Order inside a move sub-tick: every `move_blocked` (ascending fighter ID), then every `moved` (ascending ID), then blight `damaged` events (ascending ID), then `defeated` events with their `karma_changed`.
+
+Still to come with T7-T10b: `ap_spent`, `fizzled`, `healed`, `shield_changed`, `displaced`, `relocated`, `collided`, `status_applied`, `status_ended`, `cell_mutated`, `chance_rolled`, `telegraph_placed`, `telegraph_resolved`, `interacted`, `land_phase`. Each adds its row here with its task.
+
+### Data shapes (provisional, until D2/G1 fix the content files)
+- **Arena**: `{radius, obstacles: [[q, r]], karma: [[q, r, k]], creature_start_cells: [[q, r]], collapse_at, bloom_at}`.
+- **Roster**: Creatures first (player order then party order), then Monsters in Encounter order; each entry `{side: "creature" | "monster", player, name, max_hp, max_ap, max_mp, power, recharge_steps, traits, cell (Monsters)}`. Stats are inline until creature and Monster data files exist.
+- **State** (`FightState`): the grid and rules by shared reference; per-cell packed arrays (`karma`, `walkable`, `blocks_los`, `occupant`); fighters; `step`; `status` (`placement`, `fighting`, `ended`); `outcome`; the fight's PRNG. `clone()` copies it in one call.
+- **Plan checks**: `Plans.shape_errors` (malformed or stale plans, refused by `resolve_step` with nothing changed) and `validate_plan(state, plan, player = -1)` (plan-time rules: `not_fighting`, `not_your_fighter`, `cannot_move`, `path_too_long`, `cell_not_walkable`, plus the shape codes: `missing_fighter`, `fighter_not_active`, `bad_order`, `missing_from_cell`, `bad_from_cell`, `stale_from_cell`, `bad_move_path`, `path_outside_arena`, `path_not_contiguous`, `path_repeats_cell`, `unknown_key:<key>`, `abilities_unavailable`, `keeper_plans_unavailable`).
 
 ### LoS algorithm (GDD R5)
 Cube coordinates: `x = q`, `z = r`, `y = −q − r`. The algorithm samples the exact line, scaled by 12N, and adds a tiny integer nudge (`±(1, 2, −3)`). The nudge breaks exact ties without changing any non-tie result, and no ties remain after it. The nudged lines A→B and B→A visit the same cells, so LoS is symmetric.
