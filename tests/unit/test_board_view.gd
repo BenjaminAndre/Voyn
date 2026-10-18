@@ -188,3 +188,92 @@ func test_playing_events_with_animation_runs_without_errors() -> void:
 	assert_eq(land.size(), 1)
 	assert_eq(land[0], result["state"].board_karma())
 	assert_eq(board.fighter_view(1).position, board.world_of(result["state"].cell_of(result["state"].fighters[1])) + Vector3(0, BoardView.TILE_HEIGHT, 0))
+
+
+# --- Picking figures (round 2, item 2.1) ---
+
+
+## A board in a 1280x720 viewport, so figures are drawn at the size the player sees them.
+func _big_board(state: FightState) -> BoardView:
+	var viewport: SubViewport = SubViewport.new()
+	viewport.size = Vector2i(1280, 720)
+	add_child_autofree(viewport)
+	var board: BoardView = BoardView.new()
+	viewport.add_child(board)
+	board.setup(state)
+	board.animation_speed = 0.0
+	return board
+
+
+func _two_creatures_state() -> FightState:
+	var roster: Array = [
+		TestFixtures.creature({"kind": "ph_tank", "name": "PH Tank"}),
+		TestFixtures.creature({"kind": "ph_striker", "name": "PH Striker", "player": 1}),
+		TestFixtures.monster([1, -1], {"kind": "ph_brute", "name": "PH Brute"}),
+		TestFixtures.monster([4, -4], {"kind": "ph_flier", "name": "PH Flier"}),
+	]
+	return TestFixtures.running(roster, [Vector2i(0, 0), Vector2i(0, 1)], {}, 1, {"land_phase_every_steps": 1})
+
+
+func test_clicking_a_figure_resolves_to_its_cell() -> void:
+	var state: FightState = _two_creatures_state()
+	var board: BoardView = _big_board(state)
+	await get_tree().process_frame
+	for fighter: FighterState in state.fighters:
+		var view: FighterView = board.fighter_view(fighter.id)
+		for height: float in [0.45, 1.0]:
+			var screen: Vector2 = board.camera().unproject_position(view.position + Vector3(0, height, 0))
+			assert_eq(board.pick_at_screen(screen), state.cell_of(fighter), "%s at height %.2f" % [fighter.name, height])
+
+
+func test_a_figure_wins_over_the_tile_behind_it() -> void:
+	var state: FightState = _two_creatures_state()
+	var board: BoardView = _big_board(state)
+	await get_tree().process_frame
+	var view: FighterView = board.fighter_view(0)
+	var found_overlap: bool = false
+	for height: float in [0.6, 0.9, 1.2, 1.5]:
+		var point: Vector2 = board.camera().unproject_position(view.position + Vector3(0, height, 0))
+		if board.cell_at_screen(point) != state.cell_of(state.fighters[0]):
+			found_overlap = true
+		assert_eq(board.pick_at_screen(point), state.cell_of(state.fighters[0]), "the figure wins at height %.1f" % height)
+	assert_true(found_overlap, "somewhere on the figure, the floor behind it is another cell (the bug this fixes)")
+
+
+func test_empty_tiles_still_pick_the_tile() -> void:
+	var state: FightState = _two_creatures_state()
+	var board: BoardView = _big_board(state)
+	await get_tree().process_frame
+	var target: Vector2i = Vector2i(-3, 1)
+	var screen: Vector2 = board.camera().unproject_position(board.world_of(target) + Vector3(0, BoardView.TILE_HEIGHT, 0))
+	assert_eq(board.pick_at_screen(screen), target)
+
+
+func test_a_hidden_defeated_figure_is_not_pickable() -> void:
+	var state: FightState = _two_creatures_state()
+	var board: BoardView = _big_board(state)
+	await get_tree().process_frame
+	var screen: Vector2 = board.camera().unproject_position(board.fighter_view(2).position + Vector3(0, 0.45, 0))
+	var scratch: Array[Dictionary] = []
+	Defeat.apply(state, state.fighters[2], scratch)
+	board.sync(state)
+	assert_false(board.fighter_view(2).visible)
+	assert_eq(board.pick_at_screen(screen), board.cell_at_screen(screen), "falls back to the tile under the point")
+
+
+func test_clicks_and_hovers_use_figure_picking() -> void:
+	var state: FightState = _two_creatures_state()
+	var board: BoardView = _big_board(state)
+	await get_tree().process_frame
+	var screen: Vector2 = board.camera().unproject_position(board.fighter_view(1).position + Vector3(0, 0.9, 0))
+	watch_signals(board)
+	var click: InputEventMouseButton = InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = screen
+	board._unhandled_input(click)
+	assert_signal_emitted_with_parameters(board, "cell_clicked", [state.cell_of(state.fighters[1])])
+	var motion: InputEventMouseMotion = InputEventMouseMotion.new()
+	motion.position = board.camera().unproject_position(board.fighter_view(0).position + Vector3(0, 0.9, 0))
+	board._unhandled_input(motion)
+	assert_signal_emitted_with_parameters(board, "cell_hovered", [state.cell_of(state.fighters[0])])

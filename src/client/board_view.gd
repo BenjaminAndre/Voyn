@@ -181,11 +181,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _camera == null or state == null:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var cell: Vector2i = cell_at_screen(event.position)
+		var cell: Vector2i = pick_at_screen(event.position)
 		if state.grid.has_cell(cell):
 			cell_clicked.emit(cell)
 	elif event is InputEventMouseMotion:
-		var cell: Vector2i = cell_at_screen(event.position)
+		var cell: Vector2i = pick_at_screen(event.position)
 		if cell != _hovered:
 			_hovered = cell
 			if state.grid.has_cell(cell):
@@ -202,8 +202,46 @@ func cell_at_screen(position: Vector2) -> Vector2i:
 	return HexLayout.from_world(origin + direction * t, TILE_SIZE)
 
 
+## The cell a click or hover at a screen position means. A fighter's figure (body or label) counts
+## as its own cell and wins over the tile drawn behind it; elsewhere it is the tile under the point.
+func pick_at_screen(position: Vector2) -> Vector2i:
+	var best: int = -1
+	var best_distance: float = INF
+	var reach: float = maxf(6.0, 0.6 * _pixels_per_unit())
+	var ids: Array = _fighters.keys()
+	ids.sort()
+	for id: int in ids:
+		var view: FighterView = _fighters[id]
+		var fighter: FighterState = state.fighters[id]
+		if not view.visible or not fighter.on_board():
+			continue
+		# The figure is a column from its feet to its label.
+		var feet: Vector2 = _camera.unproject_position(view.position + Vector3(0, 0.1, 0))
+		var top: Vector2 = _camera.unproject_position(view.position + Vector3(0, 1.6, 0))
+		var distance: float = _distance_to_segment(position, feet, top)
+		if distance <= reach and distance < best_distance:
+			best = id
+			best_distance = distance
+	if best >= 0:
+		return state.cell_of(state.fighters[best])
+	return cell_at_screen(position)
+
+
 func camera() -> Camera3D:
 	return _camera
+
+
+func _pixels_per_unit() -> float:
+	return get_viewport().get_visible_rect().size.y / _camera.size
+
+
+static func _distance_to_segment(point: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab: Vector2 = b - a
+	var length_squared: float = ab.length_squared()
+	if length_squared <= 0.0001:
+		return point.distance_to(a)
+	var t: float = clampf((point - a).dot(ab) / length_squared, 0.0, 1.0)
+	return point.distance_to(a + ab * t)
 
 
 # --- Playing events (tweens only) ---
