@@ -13,7 +13,7 @@ Pre-production, settling **broad lines** before content. Turn structure: **discr
 - one move + one ability per Creature per step;
 - phased resolution.
 
-Validate it with D3 (paper test). Content (creatures, monsters, abilities) is placeholder. T1 setup is done; the next tasks are in `docs/tasks.md`.
+It is validated through playtest rounds on real builds (the paper test was dropped). Content is throwaway placeholder (`docs/gdd/90-placeholder-content.md`) until D4/D5. **Current goal: Playable 1**, the first web build you can play (see "Now" in `docs/tasks.md`).
 
 **Stack (decided 2026-10-16, details in `docs/architecture.md`):**
 - Client: **Godot 4.7.2 stable** (pinned 2026-10-16), typed GDScript, 3D with orthographic camera, Compatibility renderer.
@@ -28,6 +28,7 @@ Dofus/Wakfu belong to Ankama. Reuse **mechanics and genre conventions only**. Ne
 - `docs/gdd/` — the Game Design Document, one file per system. `docs/gdd/README.md` = index, glossary, decision log, open questions. **Source of truth for design.**
 - `docs/architecture.md` — stack, repo layout, rules-engine contract, testing strategy, release pipeline.
 - `docs/tasks.md` — prioritized backlog for implementation sessions.
+- `docs/playtest.md` — the build loop and the playtest checklist (Inbox → rounds).
 - `.claude/skills/gdd-author/` — process for writing and challenging GDD sections.
 - `.claude/agents/` — model-routed roles (below).
 - `project.godot` at repo root. Code in `src/` (`rules/`, `rules/turns/`, `ai/`, `client/`); tests in `tests/` (`unit/`, `golden/`, `fixtures/`).
@@ -41,6 +42,15 @@ Dofus/Wakfu belong to Ankama. Reuse **mechanics and genre conventions only**. Ne
 | `grunt` | Haiku | Mechanical work: stat tables, bulk data entry, formatting, renames, boilerplate |
 
 Rules: Opus decides, Sonnet builds, Haiku fills in. Don't use Opus for work with a clear spec; don't use Haiku for anything needing judgment. Haiku output that feeds balance or code gets spot-checked.
+
+## Build loop
+The developer wants to leave agents working in the background, play a CI build, write a checklist, then iterate.
+- **Dev sessions** work through "Now" in `docs/tasks.md`, or the open round in `docs/playtest.md`, without waiting for approval between tasks. A dev session:
+  - commits each task separately, tests green;
+  - pushes to `main` at the end of each task, which means a new web build on GitHub Pages;
+  - stops and reports to the user only for GDD ambiguities or blockers.
+- **The pilot** triages the playtest Inbox into rounds (`[dev]`, `[design]`, `[later]`, `[no]`) and writes rule changes into the GDD before code. It also reviews pushed work when asked.
+- **Every item points at a build hash**: notes say which build they were played on, and fixes say which commit fixed them.
 
 ## Working rules
 - Design changes go in the GDD first, then code. If code and GDD disagree, flag it; don't silently pick one.

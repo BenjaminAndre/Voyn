@@ -9,8 +9,9 @@
 | `03-world.md` | Arenas, Monsters, Encounters, AI behaviors | not started (after broad lines) |
 | `04-economy.md` | Harvest, crafting, trade | not started (post-MVP) |
 | `05-progression.md` | Keeper progression, creature collection | not started (broad lines D4) |
+| `90-placeholder-content.md` | Throwaway Arena, Creatures, Monsters and abilities for Playable 1 | placeholder (data/ becomes the source of truth after G1) |
 
-Related: `docs/architecture.md` (stack, rules-engine contract, testing, release pipeline), `docs/tasks.md` (backlog).
+Related: `docs/architecture.md` (stack, rules-engine contract, testing, release pipeline), `docs/tasks.md` (backlog), `docs/playtest.md` (build loop and playtest checklist).
 
 ## Glossary
 Define every term here once; use it exactly everywhere. Names marked *working* may change.
