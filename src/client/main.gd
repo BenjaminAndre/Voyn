@@ -14,11 +14,12 @@ const ENCOUNTER_ID: String = "ph_encounter_1"
 
 enum Mode { PLANNING, RESOLVING, ENDED }
 
-const COLOR_REACH: Color = Color(0.3, 0.55, 1.0, 0.32)
-const COLOR_PATH: Color = Color(1.0, 1.0, 1.0, 0.5)
-const COLOR_TARGET: Color = Color(1.0, 0.9, 0.2, 0.42)
-const COLOR_AREA: Color = Color(1.0, 0.5, 0.15, 0.55)
-const COLOR_THREAT: Color = Color(0.9, 0.12, 0.2, 0.3)
+## Plan overlays are shades of our blue, light to dark (R9.3): zone, path, predicted position, target + Area.
+const COLOR_REACH: Color = Palette.US_SHADES[0]
+const COLOR_PATH: Color = Palette.US_SHADES[1]
+const COLOR_TARGET: Color = Palette.US_SHADES[0]
+const COLOR_AREA: Color = Palette.US_SHADES[3]
+const COLOR_THREAT: Color = Palette.THREAT
 
 var content: Dictionary = {}
 var rules: Dictionary = {}
@@ -368,7 +369,7 @@ func _refresh_hint() -> void:
 	match mode:
 		Mode.PLANNING:
 			if targeting:
-				_hint.text = "Pick a yellow cell to aim at. Esc cancels the plan."
+				_hint.text = "Pick a cell to aim at. Esc cancels the plan."
 			elif selected < 0:
 				_hint.text = "Click a creature to see where it can go. Space = Ready."
 			else:
@@ -509,7 +510,7 @@ func _update_preview() -> void:
 				var text: String = "%+d" % delta if delta != 0 else ""
 				if note != "":
 					text += (" " if text != "" else "") + note
-				texts[id] = {"text": text, "color": Color(1.0, 0.55, 0.3) if delta < 0 else Color(0.5, 1.0, 0.55)}
+				texts[id] = {"text": text, "color": Palette.TEXT_DAMAGE if delta < 0 else Palette.TEXT_PLAIN}
 	board.set_previews(texts)
 	meter.set_values(state.board_karma(), after)
 

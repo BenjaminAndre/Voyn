@@ -1,15 +1,7 @@
 class_name FighterView
 extends Node3D
-## A placeholder 3D figure for one fighter: a shape by creature or Monster kind, a color by Side,
+## A placeholder 3D figure for one fighter: a shape by creature or Monster kind, a colour by Side,
 ## and a floating label with its name, HP, AP and MP. Client-only.
-
-const COLORS: Dictionary = {
-	"ph_tank": Color(0.23, 0.43, 0.65),
-	"ph_striker": Color(0.23, 0.65, 0.63),
-	"ph_archer": Color(0.48, 0.42, 0.84),
-	"ph_brute": Color(0.71, 0.27, 0.23),
-	"ph_flier": Color(0.85, 0.54, 0.23),
-}
 
 var fighter_id: int = -1
 var _label: Label3D
@@ -112,7 +104,6 @@ func _mesh_for(kind: String) -> Mesh:
 	return capsule
 
 
+## The Side sets the colour (blue = us, red = them); the kind only sets the shape (R9.3).
 func _color_for(fighter: FighterState) -> Color:
-	if COLORS.has(fighter.kind):
-		return COLORS[fighter.kind]
-	return Color(0.3, 0.5, 0.9) if fighter.is_creature() else Color(0.8, 0.3, 0.3)
+	return Palette.US if fighter.is_creature() else Palette.THEM

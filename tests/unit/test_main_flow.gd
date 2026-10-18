@@ -215,12 +215,12 @@ func test_closing_the_window_while_aiming_cancels_the_aim() -> void:
 	main.select(0)
 	main.choose_ability("bash")
 	assert_true(main.targeting)
-	assert_string_contains(_hint(main), "yellow")
+	assert_string_contains(_hint(main), "aim at")
 	await main.resolve_step()
 	assert_false(main.targeting)
 	assert_eq(main.selected, -1)
 	assert_eq(main.mode, main.Mode.PLANNING)
-	assert_false(_hint(main).contains("yellow"), "no stale 'pick a yellow cell' in the next window")
+	assert_false(_hint(main).contains("aim at"), "no stale 'pick a cell to aim' in the next window")
 	assert_eq(main.builder.plans().size(), 0)
 
 
@@ -234,7 +234,7 @@ func test_the_timer_closing_the_window_cancels_the_aim_too() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	assert_false(main.targeting)
-	assert_false(_hint(main).contains("yellow"))
+	assert_false(_hint(main).contains("aim at"))
 
 
 func test_pressing_ready_while_aiming_still_resolves_the_step() -> void:
@@ -267,7 +267,7 @@ func test_the_hint_follows_the_input_state() -> void:
 	main.select(0)
 	assert_string_contains(_hint(main), "blue cell")
 	main.choose_ability("bash")
-	assert_string_contains(_hint(main), "yellow")
+	assert_string_contains(_hint(main), "aim at")
 	main.clear_selected()
 	assert_string_contains(_hint(main), "blue cell")
 	main.choose_ability("guard")
@@ -296,7 +296,7 @@ func _assert_input_invariants(main: Control, label: String) -> void:
 		assert_false(main.targeting, "%s: no aiming outside a window" % label)
 	if main.selected >= 0:
 		assert_true(main.state.fighters[main.selected].on_board(), "%s: selected is on the board" % label)
-	assert_false(main._hint.text.contains("yellow") and not main.targeting, "%s: no stale aiming hint" % label)
+	assert_false(main._hint.text.contains("aim at") and not main.targeting, "%s: no stale aiming hint" % label)
 
 
 func test_input_state_invariants_hold_under_random_play() -> void:

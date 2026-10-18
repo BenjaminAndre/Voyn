@@ -17,12 +17,9 @@ const TILE_HEIGHT: float = 0.3
 const PILLAR_HEIGHT: float = 1.1
 const GAP: float = 0.94  # tiles are drawn slightly smaller than their cell, so edges show
 
-## Karma tints, two shades each way (R9.3): Blighted, Corrupted, Neutral, Pure, Thriving.
-const KARMA_COLORS: Array[Color] = [
-	Color(0.23, 0.11, 0.22), Color(0.48, 0.29, 0.45), Color(0.79, 0.76, 0.66),
-	Color(0.62, 0.82, 0.55), Color(0.28, 0.75, 0.42),
-]
-const PILLAR_COLOR: Color = Color(0.36, 0.36, 0.4)
+## Karma tints (R9.3): purple for corruption, green for purity, stone for Neutral (see Palette).
+const KARMA_COLORS: Array[Color] = Palette.TERRAIN
+const PILLAR_COLOR: Color = Palette.PILLAR
 
 var state: FightState
 ## Playback speed; 0 skips every wait (tests).
@@ -169,7 +166,7 @@ func set_forecast(changed: PackedInt32Array, next: PackedInt32Array) -> void:
 		cone.bottom_radius = 0.22 if rising else 0.0
 		marker.mesh = cone
 		var material: StandardMaterial3D = StandardMaterial3D.new()
-		material.albedo_color = Color(0.3, 0.95, 0.4) if rising else Color(0.95, 0.25, 0.35)
+		material.albedo_color = Palette.PURIFY if rising else Palette.CORRUPT
 		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		marker.material_override = material
 		marker.position = HexLayout.to_world(state.grid.cell_at(index), TILE_SIZE) + Vector3(0.45, TILE_HEIGHT + 0.25, -0.35)
@@ -268,35 +265,35 @@ func _play(event: Dictionary, final_state: FightState) -> void:
 			await _slide(int(event["fighter"]), _cell_of(event["to"]), 0.3)
 		"ability_used":
 			var user: FighterView = fighter_view(int(event["fighter"]))
-			_float_text(user.position + Vector3(0, 1.9, 0), str(event["ability"]).capitalize(), Color(1, 1, 1))
-			set_overlay("cast", [state.grid.index_of(_cell_of(event["cell"]))], Color(1.0, 0.9, 0.3, 0.55))
+			_float_text(user.position + Vector3(0, 1.9, 0), str(event["ability"]).capitalize(), Palette.TEXT_PLAIN)
+			set_overlay("cast", [state.grid.index_of(_cell_of(event["cell"]))], Palette.CAST_FLASH)
 			await _wait(0.35)
 			clear_overlay("cast")
 		"fizzled":
 			var fizzler: FighterView = fighter_view(int(event["fighter"]))
-			_float_text(fizzler.position + Vector3(0, 1.9, 0), "fizzled", Color(0.7, 0.7, 0.7))
+			_float_text(fizzler.position + Vector3(0, 1.9, 0), "fizzled", Palette.TEXT_MUTED)
 			await _wait(0.25)
 		"move_blocked":
 			var blocked: FighterView = fighter_view(int(event["fighter"]))
-			_float_text(blocked.position + Vector3(0, 1.7, 0), "blocked", Color(0.8, 0.8, 0.5))
+			_float_text(blocked.position + Vector3(0, 1.7, 0), "blocked", Palette.TEXT_MUTED)
 		"damaged":
 			var hit: FighterView = fighter_view(int(event["fighter"]))
 			var amount: int = int(event["amount"]) - int(event["absorbed"])
-			_float_text(hit.position + Vector3(0, 1.9, 0), "-%d" % amount if amount > 0 else "absorbed", Color(1.0, 0.35, 0.3))
+			_float_text(hit.position + Vector3(0, 1.9, 0), "-%d" % amount if amount > 0 else "absorbed", Palette.TEXT_DAMAGE)
 			hit.set_hp_text(int(event["hp"]), state.fighters[int(event["fighter"])])
 			await _wait(0.25)
 		"healed":
 			var healed: FighterView = fighter_view(int(event["fighter"]))
-			_float_text(healed.position + Vector3(0, 1.9, 0), "+%d" % int(event["amount"]), Color(0.4, 1.0, 0.5))
+			_float_text(healed.position + Vector3(0, 1.9, 0), "+%d" % int(event["amount"]), Palette.TEXT_PLAIN)
 			healed.set_hp_text(int(event["hp"]), state.fighters[int(event["fighter"])])
 			await _wait(0.2)
 		"collided":
 			var crashed: FighterView = fighter_view(int(event["fighter"]))
-			_float_text(crashed.position + Vector3(0, 2.2, 0), "crash!", Color(1.0, 0.7, 0.3))
+			_float_text(crashed.position + Vector3(0, 2.2, 0), "crash!", Palette.TEXT_DAMAGE)
 			await _wait(0.15)
 		"defeated":
 			var gone: FighterView = fighter_view(int(event["fighter"]))
-			_float_text(gone.position + Vector3(0, 2.2, 0), str(event["how"]), Color(1, 1, 1))
+			_float_text(gone.position + Vector3(0, 2.2, 0), str(event["how"]), Palette.TEXT_PLAIN)
 			var tween: Tween = gone.fade_out(0.35 * animation_speed) if animation_speed > 0.0 else null
 			if tween != null:
 				await tween.finished
@@ -311,11 +308,11 @@ func _play(event: Dictionary, final_state: FightState) -> void:
 			await _wait(0.3)
 		"status_applied":
 			var tagged: FighterView = fighter_view(int(event["fighter"]))
-			_float_text(tagged.position + Vector3(0, 2.1, 0), str(event["status"]), Color(0.8, 0.8, 1.0))
+			_float_text(tagged.position + Vector3(0, 2.1, 0), str(event["status"]), Palette.TEXT_PLAIN)
 		"shield_changed":
 			var shielded: FighterView = fighter_view(int(event["fighter"]))
 			if int(event["shield"]) > 0:
-				_float_text(shielded.position + Vector3(0, 2.1, 0), "shield %d" % int(event["shield"]), Color(0.6, 0.85, 1.0))
+				_float_text(shielded.position + Vector3(0, 2.1, 0), "shield %d" % int(event["shield"]), Palette.TEXT_PLAIN)
 
 
 func _slide(id: int, cell: Vector2i, seconds: float) -> void:

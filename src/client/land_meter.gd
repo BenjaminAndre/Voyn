@@ -4,10 +4,10 @@ extends Control
 ## after this step's Land phase. Always on screen.
 
 const COLOR_BACK: Color = Color(0.12, 0.12, 0.14, 0.85)
-const COLOR_BLIGHT: Color = Color(0.45, 0.18, 0.38)
-const COLOR_PURE: Color = Color(0.31, 0.75, 0.42)
-const COLOR_NOW: Color = Color(1.0, 1.0, 1.0)
-const COLOR_AFTER: Color = Color(1.0, 0.85, 0.2)
+const COLOR_BLIGHT: Color = Palette.CORRUPT
+const COLOR_PURE: Color = Palette.PURIFY
+const COLOR_NOW: Color = Palette.METER_NOW
+const COLOR_AFTER: Color = Palette.METER_AFTER
 
 var collapse_at: int = -1
 var bloom_at: int = 1
